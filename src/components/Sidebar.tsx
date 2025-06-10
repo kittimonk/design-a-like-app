@@ -46,8 +46,8 @@ const Sidebar = ({ activeSection, onSectionChange }: SidebarProps) => {
                 className={cn(
                   "w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-colors",
                   activeSection === item.id
-                    ? "bg-blue-600 text-white"
-                    : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                    ? "bg-green-600 text-white"
+                    : "text-slate-300 hover:bg-green-600 hover:text-white"
                 )}
               >
                 <Icon size={20} />

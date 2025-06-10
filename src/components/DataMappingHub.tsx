@@ -1,15 +1,28 @@
 
 import React, { useState } from 'react';
-import { Plus, Upload, X } from 'lucide-react';
+import { Plus, Upload, X, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 
+interface MappingResult {
+  approved: number;
+  pending: number;
+  rejected: number;
+  details?: any[];
+}
+
 const DataMappingHub = () => {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [mappingResults, setMappingResults] = useState<MappingResult>({
+    approved: 0,
+    pending: 0,
+    rejected: 0
+  });
   const { toast } = useToast();
 
   const handleDrag = (e: React.DragEvent) => {
@@ -38,7 +51,7 @@ const DataMappingHub = () => {
     }
   };
 
-  const handleUpload = () => {
+  const handleUpload = async () => {
     if (!selectedFile) {
       toast({
         title: "No file selected",
@@ -48,15 +61,53 @@ const DataMappingHub = () => {
       return;
     }
 
-    // Simulate upload error as shown in screenshots
-    toast({
-      title: "Error processing file",
-      description: "No valid mapping data found in the file.",
-      variant: "destructive"
-    });
+    setIsProcessing(true);
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      formData.append('user_details', JSON.stringify({
+        user_id: 'user123',
+        session_id: 'session123'
+      }));
 
-    setShowUploadModal(false);
-    setSelectedFile(null);
+      // Replace with your actual backend URL
+      const response = await fetch('http://localhost:8000/compare-and-recommend', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to process file');
+      }
+
+      const result = await response.json();
+      
+      // Update mapping results based on backend response
+      setMappingResults({
+        approved: result.approved_count || 0,
+        pending: result.pending_count || 0,
+        rejected: result.rejected_count || 0,
+        details: result.details
+      });
+
+      toast({
+        title: "File processed successfully",
+        description: `Approved: ${result.approved_count}, Rejected: ${result.rejected_count}`,
+      });
+
+      setShowUploadModal(false);
+      setSelectedFile(null);
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast({
+        title: "Error processing file",
+        description: "Failed to process the mapping file. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const removeFile = () => {
@@ -70,9 +121,18 @@ const DataMappingHub = () => {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Data Mapping Hub</h1>
           <div className="flex space-x-6 mt-2 text-sm">
-            <span className="text-green-600">Approved: 0</span>
-            <span className="text-yellow-600">Pending: 0</span>
-            <span className="text-red-600">Rejected: 0</span>
+            <span className="text-green-600 flex items-center">
+              <CheckCircle size={16} className="mr-1" />
+              Approved: {mappingResults.approved}
+            </span>
+            <span className="text-yellow-600 flex items-center">
+              <Clock size={16} className="mr-1" />
+              Pending: {mappingResults.pending}
+            </span>
+            <span className="text-red-600 flex items-center">
+              <XCircle size={16} className="mr-1" />
+              Rejected: {mappingResults.rejected}
+            </span>
           </div>
         </div>
         <div className="flex space-x-3">
@@ -95,23 +155,50 @@ const DataMappingHub = () => {
 
       {/* Main Content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* No Mapping Data Available */}
+        {/* Mapping Results */}
         <div className="lg:col-span-2">
-          <Card className="h-96 flex items-center justify-center">
-            <CardContent className="text-center">
-              <div className="text-slate-400 mb-4">
-                <Upload size={64} className="mx-auto mb-4" />
-              </div>
-              <h3 className="text-lg font-medium text-slate-600 mb-2">No Mapping Data Available</h3>
-              <p className="text-slate-500 text-sm mb-4">
-                Upload a CSV or Excel file containing your source-to-target mappings to get started or add a mapping manually.
-              </p>
-              <Button 
-                onClick={() => setShowUploadModal(true)}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                Upload File
-              </Button>
+          <Card className="h-96">
+            <CardHeader>
+              <CardTitle>Mapping Results</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {mappingResults.approved > 0 || mappingResults.rejected > 0 ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-3 gap-4 text-center">
+                    <div className="p-4 bg-green-50 rounded-lg">
+                      <CheckCircle className="mx-auto text-green-600 mb-2" size={24} />
+                      <div className="text-2xl font-bold text-green-600">{mappingResults.approved}</div>
+                      <div className="text-sm text-green-700">Approved</div>
+                    </div>
+                    <div className="p-4 bg-yellow-50 rounded-lg">
+                      <Clock className="mx-auto text-yellow-600 mb-2" size={24} />
+                      <div className="text-2xl font-bold text-yellow-600">{mappingResults.pending}</div>
+                      <div className="text-sm text-yellow-700">Pending</div>
+                    </div>
+                    <div className="p-4 bg-red-50 rounded-lg">
+                      <XCircle className="mx-auto text-red-600 mb-2" size={24} />
+                      <div className="text-2xl font-bold text-red-600">{mappingResults.rejected}</div>
+                      <div className="text-sm text-red-700">Rejected</div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <Upload size={64} className="mx-auto text-slate-400 mb-4" />
+                    <h3 className="text-lg font-medium text-slate-600 mb-2">No Mapping Data Available</h3>
+                    <p className="text-slate-500 text-sm mb-4">
+                      Upload a CSV or Excel file containing your source-to-target mappings to get started.
+                    </p>
+                    <Button 
+                      onClick={() => setShowUploadModal(true)}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      Upload File
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -124,7 +211,12 @@ const DataMappingHub = () => {
             </CardHeader>
             <CardContent className="flex items-center justify-center h-full">
               <div className="text-center text-slate-500">
-                <p className="text-sm">No mapping data available for lineage view</p>
+                <p className="text-sm">
+                  {mappingResults.approved > 0 
+                    ? "Lineage view available for approved mappings" 
+                    : "No mapping data available for lineage view"
+                  }
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -141,6 +233,7 @@ const DataMappingHub = () => {
                 variant="ghost" 
                 size="sm" 
                 onClick={() => setShowUploadModal(false)}
+                disabled={isProcessing}
               >
                 <X size={16} />
               </Button>
@@ -149,7 +242,7 @@ const DataMappingHub = () => {
           
           <div className="space-y-4">
             <p className="text-sm text-slate-600">
-              Upload a CSV or Excel file containing your source-to-target mappings.
+              Upload a CSV or Excel file containing your source-to-target mappings. The file will be processed using Azure OpenAI to validate and approve/reject mappings.
             </p>
             
             <div
@@ -173,6 +266,7 @@ const DataMappingHub = () => {
                     className="hidden"
                     accept=".csv,.xlsx,.xls"
                     onChange={handleFileSelect}
+                    disabled={isProcessing}
                   />
                 </label>
               </p>
@@ -184,7 +278,12 @@ const DataMappingHub = () => {
             {selectedFile && (
               <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
                 <span className="text-sm text-slate-700">{selectedFile.name}</span>
-                <Button variant="ghost" size="sm" onClick={removeFile}>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={removeFile}
+                  disabled={isProcessing}
+                >
                   Remove
                 </Button>
               </div>
@@ -194,14 +293,16 @@ const DataMappingHub = () => {
               <Button 
                 variant="outline" 
                 onClick={() => setShowUploadModal(false)}
+                disabled={isProcessing}
               >
                 Cancel
               </Button>
               <Button 
                 onClick={handleUpload}
                 className="bg-slate-900 hover:bg-slate-800"
+                disabled={isProcessing || !selectedFile}
               >
-                Upload
+                {isProcessing ? "Processing..." : "Upload"}
               </Button>
             </div>
           </div>

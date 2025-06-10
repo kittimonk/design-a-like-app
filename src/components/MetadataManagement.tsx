@@ -8,7 +8,7 @@ const MetadataManagement = () => {
   const sections = [
     { title: 'Manage Columns', description: 'Column Name' },
     { title: 'Manage Tables', description: 'Table Name' },
-    { title: 'Manage Micodes', description: 'Microde' }
+    { title: 'Manage Malcodes', description: 'Malcode' }
   ];
 
   return (
