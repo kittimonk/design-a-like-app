@@ -72,6 +72,13 @@ const DataMappingHub = () => {
     try {
       const formData = new FormData();
       formData.append('file', selectedFile);
+      
+      // Add user_details as expected by your backend
+      const userDetails = {
+        user_id: 'user123',
+        session_id: 'session123'
+      };
+      formData.append('user_details', JSON.stringify(userDetails));
 
       console.log('Uploading to:', `${getBackendUrl()}/compare-and-recommend`);
       console.log('File details:', {
@@ -79,6 +86,7 @@ const DataMappingHub = () => {
         type: selectedFile.type,
         size: selectedFile.size
       });
+      console.log('User details:', userDetails);
       
       const response = await fetch(`${getBackendUrl()}/compare-and-recommend`, {
         method: 'POST',
