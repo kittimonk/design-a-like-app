@@ -10,16 +10,24 @@ const TestDataGenerator = () => {
   const [generatedSQL, setGeneratedSQL] = useState<string>('');
   const { toast } = useToast();
 
+  // Get the current origin and use port 3000 for backend
+  const getBackendUrl = () => {
+    const currentHost = window.location.hostname;
+    return `http://${currentHost}:3000`;
+  };
+
   const generateSQLQuery = async () => {
     setIsGenerating(true);
     
     try {
-      // Replace with your actual backend URL
-      const response = await fetch('http://localhost:8000/generate-sql-logic', {
+      console.log('Generating SQL from:', `${getBackendUrl()}/generate-sql-logic`);
+      
+      const response = await fetch(`${getBackendUrl()}/generate-sql-logic`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        mode: 'cors',
         body: JSON.stringify({
           user_details: {
             user_id: 'user123',
@@ -28,11 +36,16 @@ const TestDataGenerator = () => {
         }),
       });
 
+      console.log('Response status:', response.status);
+
       if (!response.ok) {
-        throw new Error('Failed to generate SQL query');
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
+        throw new Error(`Failed to generate SQL query: ${response.status} ${response.statusText}`);
       }
 
       const result = await response.json();
+      console.log('Backend response:', result);
       
       if (result.sql_query) {
         setGeneratedSQL(result.sql_query);
@@ -43,7 +56,7 @@ const TestDataGenerator = () => {
       } else {
         toast({
           title: "No data available",
-          description: "No approved mapping data found to generate SQL query.",
+          description: result.message || "No approved mapping data found to generate SQL query.",
           variant: "destructive"
         });
       }
@@ -51,7 +64,7 @@ const TestDataGenerator = () => {
       console.error('Generate SQL error:', error);
       toast({
         title: "Error generating SQL",
-        description: "Failed to generate SQL query. Please ensure you have approved mappings.",
+        description: error instanceof Error ? error.message : "Failed to generate SQL query. Please ensure you have approved mappings.",
         variant: "destructive"
       });
     } finally {
@@ -76,6 +89,9 @@ const TestDataGenerator = () => {
         <p className="text-slate-600 mt-2">
           Generate SQL SELECT queries based on your approved data mappings using Azure OpenAI.
         </p>
+        <div className="mt-2 text-xs text-slate-500">
+          Backend URL: {getBackendUrl()}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

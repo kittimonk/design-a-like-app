@@ -25,6 +25,12 @@ const DataMappingHub = () => {
   });
   const { toast } = useToast();
 
+  // Get the current origin and use port 3000 for backend
+  const getBackendUrl = () => {
+    const currentHost = window.location.hostname;
+    return `http://${currentHost}:3000`;
+  };
+
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -71,29 +77,54 @@ const DataMappingHub = () => {
         session_id: 'session123'
       }));
 
-      // Replace with your actual backend URL
-      const response = await fetch('http://localhost:8000/compare-and-recommend', {
+      console.log('Uploading to:', `${getBackendUrl()}/compare-and-recommend`);
+      
+      const response = await fetch(`${getBackendUrl()}/compare-and-recommend`, {
         method: 'POST',
         body: formData,
+        // Add headers to handle CORS
+        mode: 'cors',
       });
 
+      console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers);
+
       if (!response.ok) {
-        throw new Error('Failed to process file');
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
+        throw new Error(`Failed to process file: ${response.status} ${response.statusText}`);
       }
 
       const result = await response.json();
+      console.log('Backend response:', result);
       
-      // Update mapping results based on backend response
+      // Parse the response based on your backend structure
+      let approvedCount = 0;
+      let rejectedCount = 0;
+      
+      if (result.approved_rows && Array.isArray(result.approved_rows)) {
+        approvedCount = result.approved_rows.length;
+      }
+      
+      if (result.message && result.message.includes('Approved') && result.message.includes('rejected')) {
+        // Parse from message like "Processed 69 rows. Approved 64 rows and rejected 5 rows."
+        const approvedMatch = result.message.match(/Approved (\d+) rows/);
+        const rejectedMatch = result.message.match(/rejected (\d+) rows/);
+        
+        if (approvedMatch) approvedCount = parseInt(approvedMatch[1]);
+        if (rejectedMatch) rejectedCount = parseInt(rejectedMatch[1]);
+      }
+
       setMappingResults({
-        approved: result.approved_count || 0,
-        pending: result.pending_count || 0,
-        rejected: result.rejected_count || 0,
-        details: result.details
+        approved: approvedCount,
+        pending: 0,
+        rejected: rejectedCount,
+        details: result
       });
 
       toast({
         title: "File processed successfully",
-        description: `Approved: ${result.approved_count}, Rejected: ${result.rejected_count}`,
+        description: result.message || `Approved: ${approvedCount}, Rejected: ${rejectedCount}`,
       });
 
       setShowUploadModal(false);
@@ -102,7 +133,7 @@ const DataMappingHub = () => {
       console.error('Upload error:', error);
       toast({
         title: "Error processing file",
-        description: "Failed to process the mapping file. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to process the mapping file. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -133,6 +164,9 @@ const DataMappingHub = () => {
               <XCircle size={16} className="mr-1" />
               Rejected: {mappingResults.rejected}
             </span>
+          </div>
+          <div className="mt-2 text-xs text-slate-500">
+            Backend URL: {getBackendUrl()}
           </div>
         </div>
         <div className="flex space-x-3">
