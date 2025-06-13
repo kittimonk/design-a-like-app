@@ -1,9 +1,10 @@
-
 import React, { useState } from 'react';
 import { Plus, Upload, X, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 
 interface MappingResult {
@@ -17,6 +18,7 @@ const DataMappingHub = () => {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [userDetails, setUserDetails] = useState('{"user_id": "user123", "session_id": "session123"}');
   const [isProcessing, setIsProcessing] = useState(false);
   const [mappingResults, setMappingResults] = useState<MappingResult>({
     approved: 0,
@@ -67,18 +69,30 @@ const DataMappingHub = () => {
       return;
     }
 
+    if (!userDetails.trim()) {
+      toast({
+        title: "User details required",
+        description: "Please enter user details.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsProcessing(true);
     
     try {
       const formData = new FormData();
       formData.append('file', selectedFile);
       
-      // Add user_details as expected by your backend
-      const userDetails = {
-        user_id: 'user123',
-        session_id: 'session123'
-      };
-      formData.append('user_details', JSON.stringify(userDetails));
+      // Parse and add user_details as expected by your backend
+      let parsedUserDetails;
+      try {
+        parsedUserDetails = JSON.parse(userDetails);
+      } catch (e) {
+        throw new Error("Invalid JSON format in user details");
+      }
+      
+      formData.append('user_details', JSON.stringify(parsedUserDetails));
 
       console.log('Uploading to:', `${getBackendUrl()}/compare-and-recommend`);
       console.log('File details:', {
@@ -86,7 +100,7 @@ const DataMappingHub = () => {
         type: selectedFile.type,
         size: selectedFile.size
       });
-      console.log('User details:', userDetails);
+      console.log('User details:', parsedUserDetails);
       
       const response = await fetch(`${getBackendUrl()}/compare-and-recommend`, {
         method: 'POST',
@@ -330,6 +344,22 @@ const DataMappingHub = () => {
                 </Button>
               </div>
             )}
+
+            {/* User Details Input */}
+            <div className="space-y-2">
+              <Label htmlFor="user-details">User Details (JSON format)</Label>
+              <textarea
+                id="user-details"
+                value={userDetails}
+                onChange={(e) => setUserDetails(e.target.value)}
+                className="w-full min-h-[80px] p-3 text-sm border border-slate-300 rounded-lg resize-vertical"
+                placeholder='{"user_id": "your_user_id", "session_id": "your_session_id"}'
+                disabled={isProcessing}
+              />
+              <p className="text-xs text-slate-500">
+                Enter user details in JSON format, same as in Swagger UI
+              </p>
+            </div>
 
             <div className="flex justify-end space-x-3">
               <Button 
