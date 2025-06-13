@@ -72,17 +72,17 @@ const DataMappingHub = () => {
     try {
       const formData = new FormData();
       formData.append('file', selectedFile);
-      formData.append('user_details', JSON.stringify({
-        user_id: 'user123',
-        session_id: 'session123'
-      }));
 
       console.log('Uploading to:', `${getBackendUrl()}/compare-and-recommend`);
+      console.log('File details:', {
+        name: selectedFile.name,
+        type: selectedFile.type,
+        size: selectedFile.size
+      });
       
       const response = await fetch(`${getBackendUrl()}/compare-and-recommend`, {
         method: 'POST',
         body: formData,
-        // Add headers to handle CORS
         mode: 'cors',
       });
 
@@ -92,7 +92,7 @@ const DataMappingHub = () => {
       if (!response.ok) {
         const errorText = await response.text();
         console.error('Error response:', errorText);
-        throw new Error(`Failed to process file: ${response.status} ${response.statusText}`);
+        throw new Error(`Failed to process file: ${response.status} ${response.statusText} - ${errorText}`);
       }
 
       const result = await response.json();
