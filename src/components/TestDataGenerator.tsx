@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,13 +12,45 @@ const TestDataGenerator = () => {
   const [generatedSQL, setGeneratedSQL] = useState<string>('');
   const [sourceTable, setSourceTable] = useState('');
   const [targetTable, setTargetTable] = useState('');
+  const [backendUrl, setBackendUrl] = useState<string>('');
   const { toast } = useToast();
 
-  // Get the current origin and use port 3000 for backend (to match your main.py)
-  const getBackendUrl = () => {
+  // Function to detect backend port
+  const detectBackendPort = async () => {
     const currentHost = window.location.hostname;
-    return `http://${currentHost}:3000`;
+    const commonPorts = [3000, 3001, 3002, 3003, 3004, 3005, 8000, 8001, 8002];
+    
+    for (const port of commonPorts) {
+      try {
+        const testUrl = `http://${currentHost}:${port}/health`;
+        const response = await fetch(testUrl, { 
+          method: 'GET',
+          mode: 'cors',
+          signal: AbortSignal.timeout(2000) // 2 second timeout
+        });
+        
+        if (response.ok) {
+          const backendUrl = `http://${currentHost}:${port}`;
+          setBackendUrl(backendUrl);
+          console.log(`Backend detected at: ${backendUrl}`);
+          return backendUrl;
+        }
+      } catch (error) {
+        // Port not available, try next one
+        continue;
+      }
+    }
+    
+    // Fallback to default
+    const fallbackUrl = `http://${currentHost}:3000`;
+    setBackendUrl(fallbackUrl);
+    console.warn('Backend port not detected, using fallback:', fallbackUrl);
+    return fallbackUrl;
   };
+
+  useEffect(() => {
+    detectBackendPort();
+  }, []);
 
   const generateSQLQuery = async () => {
     if (!sourceTable.trim() || !targetTable.trim()) {
@@ -30,10 +62,19 @@ const TestDataGenerator = () => {
       return;
     }
 
+    if (!backendUrl) {
+      toast({
+        title: "Backend not available",
+        description: "Cannot connect to backend server. Please ensure it's running.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsGenerating(true);
     
     try {
-      const url = `${getBackendUrl()}/generate-sql-logic?source_table=${encodeURIComponent(sourceTable)}&target_table=${encodeURIComponent(targetTable)}`;
+      const url = `${backendUrl}/generate-sql-logic?source_table=${encodeURIComponent(sourceTable)}&target_table=${encodeURIComponent(targetTable)}`;
       console.log('Generating SQL from:', url);
       
       const response = await fetch(url, {
@@ -98,7 +139,7 @@ const TestDataGenerator = () => {
           Generate SQL SELECT queries based on your approved data mappings using Azure OpenAI.
         </p>
         <div className="mt-2 text-xs text-slate-500">
-          Backend URL: {getBackendUrl()}
+          Backend URL: {backendUrl || 'Detecting...'}
         </div>
       </div>
 

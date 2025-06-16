@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Upload, X, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,6 +20,7 @@ const DataMappingHub = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [userDetails, setUserDetails] = useState('abc123xy');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [backendUrl, setBackendUrl] = useState<string>('');
   const [mappingResults, setMappingResults] = useState<MappingResult>({
     approved: 0,
     pending: 0,
@@ -28,10 +28,42 @@ const DataMappingHub = () => {
   });
   const { toast } = useToast();
 
-  // Use the correct backend URL - your backend is running on port 3000
-  const getBackendUrl = () => {
-    return "http://localhost:3000";
+  // Function to detect backend port
+  const detectBackendPort = async () => {
+    const currentHost = window.location.hostname;
+    const commonPorts = [3000, 3001, 3002, 3003, 3004, 3005, 8000, 8001, 8002];
+    
+    for (const port of commonPorts) {
+      try {
+        const testUrl = `http://${currentHost}:${port}/health`;
+        const response = await fetch(testUrl, { 
+          method: 'GET',
+          mode: 'cors',
+          signal: AbortSignal.timeout(2000) // 2 second timeout
+        });
+        
+        if (response.ok) {
+          const backendUrl = `http://${currentHost}:${port}`;
+          setBackendUrl(backendUrl);
+          console.log(`Backend detected at: ${backendUrl}`);
+          return backendUrl;
+        }
+      } catch (error) {
+        // Port not available, try next one
+        continue;
+      }
+    }
+    
+    // Fallback to default
+    const fallbackUrl = `http://${currentHost}:3000`;
+    setBackendUrl(fallbackUrl);
+    console.warn('Backend port not detected, using fallback:', fallbackUrl);
+    return fallbackUrl;
   };
+
+  useEffect(() => {
+    detectBackendPort();
+  }, []);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -78,14 +110,23 @@ const DataMappingHub = () => {
       return;
     }
 
+    if (!backendUrl) {
+      toast({
+        title: "Backend not available",
+        description: "Cannot connect to backend server. Please ensure it's running.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsProcessing(true);
     
     try {
       const formData = new FormData();
       formData.append('file', selectedFile);
-      formData.append('user', userDetails.trim()); // Make sure to trim whitespace
+      formData.append('user', userDetails.trim());
 
-      console.log('Uploading to:', `${getBackendUrl()}/compare-and-recommend`);
+      console.log('Uploading to:', `${backendUrl}/compare-and-recommend`);
       console.log('File details:', {
         name: selectedFile.name,
         type: selectedFile.type,
@@ -93,14 +134,12 @@ const DataMappingHub = () => {
       });
       console.log('User details:', userDetails);
       
-      const response = await fetch(`${getBackendUrl()}/compare-and-recommend`, {
+      const response = await fetch(`${backendUrl}/compare-and-recommend`, {
         method: 'POST',
         body: formData,
-        // Don't set Content-Type header - let the browser set it with boundary for multipart/form-data
       });
 
       console.log('Response status:', response.status);
-      console.log('Response headers:', response.headers);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -111,7 +150,6 @@ const DataMappingHub = () => {
       const result = await response.json();
       console.log('Backend response:', result);
       
-      // Parse the response based on your backend structure
       const approvedCount = result.approved_rows?.length || 0;
       const rejectedCount = result.rejected_rows?.length || 0;
 
@@ -166,7 +204,7 @@ const DataMappingHub = () => {
             </span>
           </div>
           <div className="mt-2 text-xs text-slate-500">
-            Backend URL: {getBackendUrl()}
+            Backend URL: {backendUrl || 'Detecting...'}
           </div>
         </div>
         <div className="flex space-x-3">
@@ -348,7 +386,7 @@ const DataMappingHub = () => {
               <Button 
                 onClick={handleUpload}
                 className="bg-slate-900 hover:bg-slate-800"
-                disabled={isProcessing || !selectedFile}
+                disabled={isProcessing || !selectedFile || !backendUrl}
               >
                 {isProcessing ? "Processing..." : "Upload"}
               </Button>
