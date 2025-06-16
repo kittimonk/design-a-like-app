@@ -18,7 +18,7 @@ const DataMappingHub = () => {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [userDetails, setUserDetails] = useState('{"user_id": "user123", "session_id": "session123"}');
+  const [userDetails, setUserDetails] = useState('abc123xy');
   const [isProcessing, setIsProcessing] = useState(false);
   const [mappingResults, setMappingResults] = useState<MappingResult>({
     approved: 0,
@@ -27,10 +27,10 @@ const DataMappingHub = () => {
   });
   const { toast } = useToast();
 
-  // Get the current origin and use port 8000 for backend (FastAPI default)
+  // Get the current origin and use port 3000 for backend (to match your main.py)
   const getBackendUrl = () => {
     const currentHost = window.location.hostname;
-    return `http://${currentHost}:8000`;
+    return `http://${currentHost}:3000`;
   };
 
   const handleDrag = (e: React.DragEvent) => {
@@ -83,16 +83,7 @@ const DataMappingHub = () => {
     try {
       const formData = new FormData();
       formData.append('file', selectedFile);
-      
-      // Parse and add user_details as expected by your backend
-      let parsedUserDetails;
-      try {
-        parsedUserDetails = JSON.parse(userDetails);
-      } catch (e) {
-        throw new Error("Invalid JSON format in user details");
-      }
-      
-      formData.append('user_details', JSON.stringify(parsedUserDetails));
+      formData.append('user', userDetails); // Backend expects 'user' field, not 'user_details'
 
       console.log('Uploading to:', `${getBackendUrl()}/compare-and-recommend`);
       console.log('File details:', {
@@ -100,7 +91,7 @@ const DataMappingHub = () => {
         type: selectedFile.type,
         size: selectedFile.size
       });
-      console.log('User details:', parsedUserDetails);
+      console.log('User details:', userDetails);
       
       const response = await fetch(`${getBackendUrl()}/compare-and-recommend`, {
         method: 'POST',
@@ -109,7 +100,6 @@ const DataMappingHub = () => {
       });
 
       console.log('Response status:', response.status);
-      console.log('Response headers:', response.headers);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -121,8 +111,8 @@ const DataMappingHub = () => {
       console.log('Backend response:', result);
       
       // Parse the response based on your backend structure
-      const approvedCount = result.approved_count || 0;
-      const rejectedCount = result.rejected_count || 0;
+      const approvedCount = result.approved_rows?.length || 0;
+      const rejectedCount = result.rejected_rows?.length || 0;
 
       setMappingResults({
         approved: approvedCount,
@@ -332,19 +322,18 @@ const DataMappingHub = () => {
               </div>
             )}
 
-            {/* User Details Input */}
+            {/* User Details Input - Updated for simple string input */}
             <div className="space-y-2">
-              <Label htmlFor="user-details">User Details (JSON format)</Label>
-              <textarea
+              <Label htmlFor="user-details">User ID</Label>
+              <Input
                 id="user-details"
                 value={userDetails}
                 onChange={(e) => setUserDetails(e.target.value)}
-                className="w-full min-h-[80px] p-3 text-sm border border-slate-300 rounded-lg resize-vertical"
-                placeholder='{"user_id": "your_user_id", "session_id": "your_session_id"}'
+                placeholder="Enter your user ID (e.g., abc123xy)"
                 disabled={isProcessing}
               />
               <p className="text-xs text-slate-500">
-                Enter user details in JSON format, same as in Swagger UI
+                Enter your user ID as a simple string
               </p>
             </div>
 

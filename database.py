@@ -1,251 +1,184 @@
 
-import sqlite3
-import json
-import logging
-from typing import List, Dict, Any
-from datetime import datetime
 import os
+import pyodbc
+from azure.identity import ManagedIdentityCredential, get_bearer_token_provider
+from sqlalchemy import create_engine, text, Column, String, DateTime, Integer
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker, scoped_session, declarative_base
+from sqlalchemy.engine import URL
+import pandas as pd
+from datetime import import datetime
 
-logger = logging.getLogger(__name__)
+pyodbc.pooling = False
 
-class DatabaseManager:
-    def __init__(self, db_path: str = "data_mapping.db"):
-        self.db_path = db_path
-        self.init_database()
+# Azure and database configuration
+subscription_id = "d7da3-20-aaa4-b8bff"
+client_id = "853-6a07d-acdc152"
+object_id = "36-b2d6-4-4d8d39"
 
-    def init_database(self):
-        """Initialize database connection"""
-        try:
-            # Ensure the database file exists
-            if not os.path.exists(self.db_path):
-                open(self.db_path, 'a').close()
-            logger.info(f"Database initialized at {self.db_path}")
-        except Exception as e:
-            logger.error(f"Error initializing database: {e}")
-            raise
+# Use Managed Identity Credential
+msi = ManagedIdentityCredential(client_id=None if os.getenv("WEBSITE_INSTANCE_ID") else client_id)
+azure_ad_token_provider = get_bearer_token_provider(msi, "https://cognitiveservices.azure.com/.default")
+token = azure_ad_token_provider().encode('utf-8')
 
-    def get_connection(self):
-        """Get database connection"""
-        try:
-            conn = sqlite3.connect(self.db_path)
-            conn.row_factory = sqlite3.Row  # This enables column access by name
-            return conn
-        except Exception as e:
-            logger.error(f"Error connecting to database: {e}")
-            raise
+# SQL Server configuration
+SQL_DRIVER = "{ODBC Driver 18 for SQL Server}"  # Change to "{ODBC Driver 17 for SQL Server}" if needed
+SQL_SERVER = "003-eastus2-psql-7.database.windows.net,1433"
+SQL_DATABASE = "ds-ai-ai-ent03-devdb"
 
-    def create_tables(self):
-        """Create necessary tables if they don't exist"""
-        try:
-            conn = self.get_connection()
-            cursor = conn.cursor()
+# Connection string
+connection_string = (
+    f"DRIVER={SQL_DRIVER};"
+    f"SERVER={SQL_SERVER};"
+    f"DATABASE={SQL_DATABASE};"
+    f"UID={object_id};"
+    f"Authentication=ActiveDirectoryMsi;"
+    f"Encrypt=Yes;"
+)
 
-            # Create SourceTargetMapping table
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS SourceTargetMapping (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    source_table TEXT NOT NULL,
-                    source_column TEXT NOT NULL,
-                    target_table TEXT NOT NULL,
-                    target_column TEXT NOT NULL,
-                    user_id TEXT NOT NULL,
-                    session_id TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+# Create SQLAlchemy engine
+connection_url = URL.create("mssql+pyodbc", query={"odbc_connect": connection_string})
+engine = create_engine(connection_url, pool_recycle=1500, pool_pre_ping=True, connect_args={"check_same_thread": False})
+
+# SQLAlchemy session setup
+session_factory = sessionmaker(bind=engine)
+Session = scoped_session(session_factory)
+Base = declarative_base()
+
+# Define database schema
+class SourceTargetMapping(Base):
+    __tablename__ = "source_target_mapping"
+    __table_args__ = {"schema": "dbo"}
+
+    id = Column(Integer, primary_key=True, autoincrement=True)  # Add surrogate key
+    source_schema = Column(String(255), nullable=False)
+    source_table = Column(String(255), nullable=False)
+    source_columns = Column(String)
+    source_data_types = Column(String)
+    source_adls_location = Column(String)
+    target_schema = Column(String)
+    target_table = Column(String)
+    target_columns = Column(String)
+    target_data_types = Column(String)
+    target_adls_location = Column(String)
+    transformation_rule = Column(String)
+    join_rule = Column(String)
+    user_upload_details = Column(String)
+    date_inserted = Column(DateTime, default=datetime.utcnow)
+    date_updated = Column(DateTime)
+    date_deleted = Column(DateTime)
+    changes_applied = Column(String)
+    user_upload_filename = Column(String)
+    approved_by = Column(String)
+
+class RejectedRows(Base):
+    __tablename__ = "rejected_rows"
+    __table_args__ = {"schema": "dbo"}
+
+    id = Column(Integer, primary_key=True, autoincrement=True)  # Add surrogate key
+    source_schema = Column(String)
+    source_table = Column(String)
+    source_columns = Column(String)
+    source_data_types = Column(String)
+    source_adls_location = Column(String)
+    target_schema = Column(String)
+    target_table = Column(String)
+    target_columns = Column(String)
+    target_data_types = Column(String)
+    target_adls_location = Column(String)
+    transformation_rule = Column(String)
+    join_rule = Column(String)
+    user_upload_details = Column(String)
+    date_inserted = Column(DateTime, default=datetime.utcnow)
+    date_updated = Column(DateTime)
+    date_deleted = Column(DateTime)
+    changes_applied = Column(String)
+    user_upload_filename = Column(String(255))  # Remove primary key constraint
+    rejected_by = Column(String)
+    reject_reason = Column(String)
+
+# Create tables if they don't exist
+Base.metadata.create_all(engine)
+
+def process_file(file_path, user_details):
+    """
+    Process an uploaded Excel file and insert data into the database.
+    """
+    session = Session()
+    try:
+        # Read the Excel file
+        df = pd.read_excel(file_path, engine='openpyxl')
+
+        # Check if the file has already been processed
+        file_name = os.path.basename(file_path)
+        existing_file = session.query(SourceTargetMapping).filter_by(user_upload_filename=file_name).first()
+        if existing_file:
+            raise ValueError(f"File '{file_name}' has already been processed.")
+
+        # Process approved rows
+        for _, row in df.iterrows():
+            if row["approved"]:  # Assuming there's an "approved" column in the file
+                mapping = SourceTargetMapping(
+                    source_schema=row["source_schema"],
+                    source_table=row["source_table"],
+                    source_columns=row["source_columns"],
+                    source_data_types=row["source_data_types"],
+                    source_adls_location=row["source_adls_location"],
+                    target_schema=row["target_schema"],
+                    target_table=row["target_table"],
+                    target_columns=row["target_columns"],
+                    target_data_types=row["target_data_types"],
+                    target_adls_location=row["target_adls_location"],
+                    transformation_rule=row["transformation_rule"],
+                    join_rule=row["join_rule"],
+                    user_upload_details=user_details,
+                    user_upload_filename=file_name,
+                    approved_by=row["approved_by"]
                 )
-            ''')
-
-            # Create RejectedRows table
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS RejectedRows (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    row_data TEXT NOT NULL,
-                    rejection_reason TEXT NOT NULL,
-                    user_id TEXT NOT NULL,
-                    session_id TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                session.add(mapping)
+            else:
+                # Log rejected rows
+                rejected = RejectedRows(
+                    source_schema=row["source_schema"],
+                    source_table=row["source_table"],
+                    source_columns=row["source_columns"],
+                    source_data_types=row["source_data_types"],
+                    source_adls_location=row["source_adls_location"],
+                    target_schema=row["target_schema"],
+                    target_table=row["target_table"],
+                    target_columns=row["target_columns"],
+                    target_data_types=row["target_data_types"],
+                    target_adls_location=row["target_adls_location"],
+                    transformation_rule=row["transformation_rule"],
+                    join_rule=row["join_rule"],
+                    user_upload_details=user_details,
+                    user_upload_filename=file_name,
+                    rejected_by=row["rejected_by"],
+                    reject_reason=row["reject_reason"]
                 )
-            ''')
+                session.add(rejected)
 
-            # Create indexes for better performance
-            cursor.execute('''
-                CREATE INDEX IF NOT EXISTS idx_source_target_user 
-                ON SourceTargetMapping(user_id, session_id)
-            ''')
+        session.commit()
+        print("File processed successfully.")
+    except Exception as e:
+        session.rollback()
+        print(f"Error processing file: {e}")
+    finally:
+        session.close()
 
-            cursor.execute('''
-                CREATE INDEX IF NOT EXISTS idx_rejected_user 
-                ON RejectedRows(user_id, session_id)
-            ''')
-
-            conn.commit()
-            conn.close()
-            logger.info("Database tables created successfully")
-
-        except Exception as e:
-            logger.error(f"Error creating tables: {e}")
-            raise
-
-    def insert_source_target_mapping(self, mapping_data: Dict[str, Any]):
-        """Insert approved mapping into SourceTargetMapping table"""
-        try:
-            conn = self.get_connection()
-            cursor = conn.cursor()
-
-            cursor.execute('''
-                INSERT INTO SourceTargetMapping 
-                (source_table, source_column, target_table, target_column, user_id, session_id)
-                VALUES (?, ?, ?, ?, ?, ?)
-            ''', (
-                mapping_data['source_table'],
-                mapping_data['source_column'],
-                mapping_data['target_table'],
-                mapping_data['target_column'],
-                mapping_data['user_id'],
-                mapping_data.get('session_id')
-            ))
-
-            conn.commit()
-            mapping_id = cursor.lastrowid
-            conn.close()
-            
-            logger.info(f"Inserted mapping with ID: {mapping_id}")
-            return mapping_id
-
-        except Exception as e:
-            logger.error(f"Error inserting mapping: {e}")
-            raise
-
-    def insert_rejected_row(self, rejected_data: Dict[str, Any]):
-        """Insert rejected row into RejectedRows table"""
-        try:
-            conn = self.get_connection()
-            cursor = conn.cursor()
-
-            cursor.execute('''
-                INSERT INTO RejectedRows 
-                (row_data, rejection_reason, user_id, session_id)
-                VALUES (?, ?, ?, ?)
-            ''', (
-                json.dumps(rejected_data['row_data']),
-                rejected_data['rejection_reason'],
-                rejected_data['user_id'],
-                rejected_data.get('session_id')
-            ))
-
-            conn.commit()
-            rejected_id = cursor.lastrowid
-            conn.close()
-            
-            logger.info(f"Inserted rejected row with ID: {rejected_id}")
-            return rejected_id
-
-        except Exception as e:
-            logger.error(f"Error inserting rejected row: {e}")
-            raise
-
-    def get_approved_mappings(self, user_id: str, session_id: str = None) -> List[Dict[str, Any]]:
-        """Get all approved mappings for a user"""
-        try:
-            conn = self.get_connection()
-            cursor = conn.cursor()
-
-            if session_id:
-                cursor.execute('''
-                    SELECT * FROM SourceTargetMapping 
-                    WHERE user_id = ? AND session_id = ?
-                    ORDER BY created_at DESC
-                ''', (user_id, session_id))
-            else:
-                cursor.execute('''
-                    SELECT * FROM SourceTargetMapping 
-                    WHERE user_id = ?
-                    ORDER BY created_at DESC
-                ''', (user_id,))
-
-            rows = cursor.fetchall()
-            conn.close()
-
-            # Convert to list of dictionaries
-            mappings = []
-            for row in rows:
-                mappings.append({
-                    'id': row['id'],
-                    'source_table': row['source_table'],
-                    'source_column': row['source_column'],
-                    'target_table': row['target_table'],
-                    'target_column': row['target_column'],
-                    'user_id': row['user_id'],
-                    'session_id': row['session_id'],
-                    'created_at': row['created_at'],
-                    'updated_at': row['updated_at']
-                })
-
-            logger.info(f"Retrieved {len(mappings)} mappings for user {user_id}")
-            return mappings
-
-        except Exception as e:
-            logger.error(f"Error getting approved mappings: {e}")
-            raise
-
-    def get_rejected_rows(self, user_id: str, session_id: str = None) -> List[Dict[str, Any]]:
-        """Get all rejected rows for a user"""
-        try:
-            conn = self.get_connection()
-            cursor = conn.cursor()
-
-            if session_id:
-                cursor.execute('''
-                    SELECT * FROM RejectedRows 
-                    WHERE user_id = ? AND session_id = ?
-                    ORDER BY created_at DESC
-                ''', (user_id, session_id))
-            else:
-                cursor.execute('''
-                    SELECT * FROM RejectedRows 
-                    WHERE user_id = ?
-                    ORDER BY created_at DESC
-                ''', (user_id,))
-
-            rows = cursor.fetchall()
-            conn.close()
-
-            # Convert to list of dictionaries
-            rejected_rows = []
-            for row in rows:
-                rejected_rows.append({
-                    'id': row['id'],
-                    'row_data': json.loads(row['row_data']),
-                    'rejection_reason': row['rejection_reason'],
-                    'user_id': row['user_id'],
-                    'session_id': row['session_id'],
-                    'created_at': row['created_at']
-                })
-
-            logger.info(f"Retrieved {len(rejected_rows)} rejected rows for user {user_id}")
-            return rejected_rows
-
-        except Exception as e:
-            logger.error(f"Error getting rejected rows: {e}")
-            raise
-
-    def clear_user_data(self, user_id: str, session_id: str = None):
-        """Clear all data for a specific user (useful for testing)"""
-        try:
-            conn = self.get_connection()
-            cursor = conn.cursor()
-
-            if session_id:
-                cursor.execute('DELETE FROM SourceTargetMapping WHERE user_id = ? AND session_id = ?', (user_id, session_id))
-                cursor.execute('DELETE FROM RejectedRows WHERE user_id = ? AND session_id = ?', (user_id, session_id))
-            else:
-                cursor.execute('DELETE FROM SourceTargetMapping WHERE user_id = ?', (user_id,))
-                cursor.execute('DELETE FROM RejectedRows WHERE user_id = ?', (user_id,))
-
-            conn.commit()
-            conn.close()
-            logger.info(f"Cleared data for user {user_id}")
-
-        except Exception as e:
-            logger.error(f"Error clearing user data: {e}")
-            raise
+# Test database connection
+if __name__ == "__main__":
+    session = Session()
+    try:
+        print("Testing database connection...")
+        # Test a simple query to check the connection
+        query = text("SELECT TOP 10 * FROM sys.tables")
+        result = session.execute(query)
+        # Query system tables to verify connection
+        print("Connection successful! Retrieved data:")
+        for row in result:
+            print(row)
+    except Exception as e:
+        print(f"Database connection failed: {e}")
+    finally:
+        session.close()

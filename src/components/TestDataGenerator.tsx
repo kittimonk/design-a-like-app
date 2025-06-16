@@ -1,36 +1,47 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { TestTube, Database, Copy, Play } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const TestDataGenerator = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedSQL, setGeneratedSQL] = useState<string>('');
+  const [sourceTable, setSourceTable] = useState('');
+  const [targetTable, setTargetTable] = useState('');
   const { toast } = useToast();
 
-  // Get the current origin and use port 8000 for backend (FastAPI default)
+  // Get the current origin and use port 3000 for backend (to match your main.py)
   const getBackendUrl = () => {
     const currentHost = window.location.hostname;
-    return `http://${currentHost}:8000`;
+    return `http://${currentHost}:3000`;
   };
 
   const generateSQLQuery = async () => {
+    if (!sourceTable.trim() || !targetTable.trim()) {
+      toast({
+        title: "Missing table names",
+        description: "Please enter both source and target table names.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsGenerating(true);
     
     try {
-      console.log('Generating SQL from:', `${getBackendUrl()}/generate-sql-logic`);
+      const url = `${getBackendUrl()}/generate-sql-logic?source_table=${encodeURIComponent(sourceTable)}&target_table=${encodeURIComponent(targetTable)}`;
+      console.log('Generating SQL from:', url);
       
-      const response = await fetch(`${getBackendUrl()}/generate-sql-logic`, {
-        method: 'POST',
+      const response = await fetch(url, {
+        method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         },
         mode: 'cors',
-        body: JSON.stringify({
-          user_id: 'abc123xy',
-          session_id: 'session123'
-        }),
       });
 
       console.log('Response status:', response.status);
@@ -44,16 +55,16 @@ const TestDataGenerator = () => {
       const result = await response.json();
       console.log('Backend response:', result);
       
-      if (result.sql_query) {
-        setGeneratedSQL(result.sql_query);
+      if (result.sql_logic) {
+        setGeneratedSQL(result.sql_logic);
         toast({
           title: "SQL Query Generated",
           description: "Successfully generated SQL query based on approved mappings.",
         });
-      } else {
+      } else if (result.error) {
         toast({
           title: "No data available",
-          description: result.message || "No approved mapping data found to generate SQL query.",
+          description: result.error,
           variant: "destructive"
         });
       }
@@ -102,8 +113,33 @@ const TestDataGenerator = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-slate-600">
-              Generate SQL SELECT queries based on approved mappings in your database tables.
+              Generate SQL SELECT queries based on approved mappings between source and target tables.
             </p>
+            
+            <div className="space-y-3">
+              <div>
+                <Label htmlFor="source-table">Source Table</Label>
+                <Input
+                  id="source-table"
+                  value={sourceTable}
+                  onChange={(e) => setSourceTable(e.target.value)}
+                  placeholder="Enter source table name"
+                  disabled={isGenerating}
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="target-table">Target Table</Label>
+                <Input
+                  id="target-table"
+                  value={targetTable}
+                  onChange={(e) => setTargetTable(e.target.value)}
+                  placeholder="Enter target table name"
+                  disabled={isGenerating}
+                />
+              </div>
+            </div>
+            
             <Button 
               onClick={generateSQLQuery}
               disabled={isGenerating}
@@ -136,6 +172,10 @@ const TestDataGenerator = () => {
               <div className="flex justify-between text-sm">
                 <span>Azure OpenAI:</span>
                 <span className="text-green-600">Available</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span>SQL Server:</span>
+                <span className="text-green-600">Connected</span>
               </div>
             </div>
           </CardContent>
@@ -172,7 +212,7 @@ const TestDataGenerator = () => {
           <TestTube size={64} className="mx-auto text-slate-400 mb-4" />
           <h3 className="text-lg font-medium text-slate-600 mb-2">No SQL Query Generated</h3>
           <p className="text-slate-500 mb-4">
-            Click "Generate SQL Query" to create a SELECT query based on your approved data mappings.
+            Enter source and target table names, then click "Generate SQL Query" to create a SELECT query based on your approved data mappings.
           </p>
         </div>
       )}
