@@ -27,10 +27,10 @@ const DataMappingHub = () => {
   });
   const { toast } = useToast();
 
-  // Get the current origin and use port 3000 for backend
+  // Get the current origin and use port 8000 for backend (FastAPI default)
   const getBackendUrl = () => {
     const currentHost = window.location.hostname;
-    return `http://${currentHost}:3000`;
+    return `http://${currentHost}:8000`;
   };
 
   const handleDrag = (e: React.DragEvent) => {
@@ -121,21 +121,8 @@ const DataMappingHub = () => {
       console.log('Backend response:', result);
       
       // Parse the response based on your backend structure
-      let approvedCount = 0;
-      let rejectedCount = 0;
-      
-      if (result.approved_rows && Array.isArray(result.approved_rows)) {
-        approvedCount = result.approved_rows.length;
-      }
-      
-      if (result.message && result.message.includes('Approved') && result.message.includes('rejected')) {
-        // Parse from message like "Processed 69 rows. Approved 64 rows and rejected 5 rows."
-        const approvedMatch = result.message.match(/Approved (\d+) rows/);
-        const rejectedMatch = result.message.match(/rejected (\d+) rows/);
-        
-        if (approvedMatch) approvedCount = parseInt(approvedMatch[1]);
-        if (rejectedMatch) rejectedCount = parseInt(rejectedMatch[1]);
-      }
+      const approvedCount = result.approved_count || 0;
+      const rejectedCount = result.rejected_count || 0;
 
       setMappingResults({
         approved: approvedCount,

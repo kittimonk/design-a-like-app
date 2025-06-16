@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,10 +9,10 @@ const TestDataGenerator = () => {
   const [generatedSQL, setGeneratedSQL] = useState<string>('');
   const { toast } = useToast();
 
-  // Get the current origin and use port 3000 for backend
+  // Get the current origin and use port 8000 for backend (FastAPI default)
   const getBackendUrl = () => {
     const currentHost = window.location.hostname;
-    return `http://${currentHost}:3000`;
+    return `http://${currentHost}:8000`;
   };
 
   const generateSQLQuery = async () => {
@@ -29,10 +28,8 @@ const TestDataGenerator = () => {
         },
         mode: 'cors',
         body: JSON.stringify({
-          user_details: {
-            user_id: 'user123',
-            session_id: 'session123'
-          }
+          user_id: 'abc123xy',
+          session_id: 'session123'
         }),
       });
 
