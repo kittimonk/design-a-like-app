@@ -2,7 +2,7 @@
 import os
 import openai
 import pandas as pd
-from fastapi import FastAPI, UploadFile, File, Form
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from azure.identity import ManagedIdentityCredential, get_bearer_token_provider
@@ -76,17 +76,36 @@ def replace_nan_with_none(data):
         return data
 
 @app.post("/compare-and-recommend")
-async def compare_and_recommend_endpoint(file: UploadFile, user: str = Form(...)):
+async def compare_and_recommend_endpoint(file: UploadFile = File(...), user: str = Form(...)):
     session = Session()
     try:
-        # Save the uploaded file
+        logging.info(f"Received file upload request - filename: {file.filename}, user: {user}")
+        
+        # Validate file type
+        if not file.filename.endswith(('.xlsx', '.xls', '.csv')):
+            raise HTTPException(status_code=400, detail="Invalid file type. Please upload Excel or CSV files only.")
+        
+        # Read file content
+        file_content = await file.read()
+        if not file_content:
+            raise HTTPException(status_code=400, detail="Empty file uploaded.")
+        
+        # Save the uploaded file temporarily
         file_path = f"/tmp/{file.filename}"
         with open(file_path, "wb") as f:
-            await file.read()
-            f.write(await file.read())
+            f.write(file_content)
         logging.info(f"File saved: {file_path}")
 
-        df_uploaded = pd.read_excel(file_path, engine='openpyxl')
+        # Read the file based on its type
+        try:
+            if file.filename.endswith('.csv'):
+                df_uploaded = pd.read_csv(file_path)
+            else:
+                df_uploaded = pd.read_excel(file_path, engine='openpyxl')
+        except Exception as e:
+            logging.error(f"Error reading file: {str(e)}")
+            raise HTTPException(status_code=400, detail=f"Error reading file: {str(e)}")
+        
         df_uploaded = df_uploaded.where(pd.notnull(df_uploaded), None)
         logging.info(f"Uploaded file read successfully. Rows: {len(df_uploaded)}")
 
@@ -98,13 +117,15 @@ async def compare_and_recommend_endpoint(file: UploadFile, user: str = Form(...)
         ]
         if set(df_uploaded.columns) != set(expected_columns):
             logging.error("Invalid column order in uploaded file.")
-            return {"error": "Invalid Excel format. Ensure the file has the correct columns."}
+            logging.error(f"Expected columns: {expected_columns}")
+            logging.error(f"Actual columns: {list(df_uploaded.columns)}")
+            raise HTTPException(status_code=400, detail="Invalid Excel format. Ensure the file has the correct columns.")
 
         # Check for duplicate file processing
-        existing_files = session.query(SourceTargetMapping).filter_by(user_upload_filename=file.filename).distinct().all()
-        if file.filename in [file[0] for file in existing_files]:
+        existing_files = session.query(SourceTargetMapping.user_upload_filename).filter_by(user_upload_filename=file.filename).distinct().all()
+        if file.filename in [file_record[0] for file_record in existing_files]:
             logging.error(f"Duplicate file detected: {file.filename}")
-            return {"error": f"The file '{file.filename}' has already been processed."}
+            raise HTTPException(status_code=400, detail=f"The file '{file.filename}' has already been processed.")
 
         # Fetch existing data
         existing_data = session.query(SourceTargetMapping).all()
@@ -220,9 +241,6 @@ Existing Data (Sample Size: {min(len(df_existing), 50)}):
             except Exception as e:
                 logging.error(f"Error processing batch {batch_index + 1}: {str(e)}")
 
-        # Log rejected rows after processing the batch
-        logging.info(f"Rejected rows after processing batch {batch_index + 1}: {rejected_rows}")
-
         # Replace NaN values with None before inserting into the database
         approved_rows = replace_nan_with_none(approved_rows)
         rejected_rows = replace_nan_with_none(rejected_rows)
@@ -230,18 +248,12 @@ Existing Data (Sample Size: {min(len(df_existing), 50)}):
         logging.info(f"Cleaned approved rows: {approved_rows}")
         logging.info(f"Cleaned rejected rows: {rejected_rows}")
 
-        # Log final rows to files
-        with open("/tmp/approved_rows.json", "w") as f:
-            json.dump(approved_rows, f, indent=4)
-        with open("/tmp/rejected_rows.json", "w") as f:
-            json.dump(rejected_rows, f, indent=4)
-        logging.info("Logged approved and rejected rows to files.")
-
         # Insert rejected rows into the database first
         try:
             for row in rejected_rows:
                 session.add(RejectedRows(**row))
             session.commit()
+            logging.info(f"Inserted {len(rejected_rows)} rejected rows successfully")
         except Exception as e:
             logging.error(f"Error inserting rejected rows: {str(e)}")
             session.rollback()
@@ -251,6 +263,7 @@ Existing Data (Sample Size: {min(len(df_existing), 50)}):
             for row in approved_rows:
                 session.add(SourceTargetMapping(**row))
             session.commit()
+            logging.info(f"Inserted {len(approved_rows)} approved rows successfully")
         except Exception as e:
             logging.error(f"Error inserting approved rows: {str(e)}")
             session.rollback()
@@ -260,10 +273,12 @@ Existing Data (Sample Size: {min(len(df_existing), 50)}):
             "approved_rows": approved_rows,
             "rejected_rows": rejected_rows,
         }
+    except HTTPException:
+        raise
     except Exception as e:
         logging.error(f"Error in compare-and-recommend: {str(e)}")
         session.rollback()
-        return {"error": str(e)}
+        raise HTTPException(status_code=500, detail=str(e))
     finally:
         session.close()
 
@@ -286,7 +301,10 @@ async def generate_sql_logic_endpoint(source_table: str, target_table: str):
         mappings = session.execute(query, {"source_table": source_table, "target_table": target_table}).fetchall()
 
         if not mappings:
-            return {"error": f"No column mappings or transformation rules found for source table '{source_table}' and target table '{target_table}'."}
+            raise HTTPException(
+                status_code=404, 
+                detail=f"No column mappings or transformation rules found for source table '{source_table}' and target table '{target_table}'."
+            )
 
         # Format the mappings for SQL query construction
         select_clauses = []
@@ -321,11 +339,18 @@ async def generate_sql_logic_endpoint(source_table: str, target_table: str):
 
         # Return the formatted SQL query directly
         return {"sql_logic": formatted_query}
+    except HTTPException:
+        raise
     except Exception as e:
         logging.error(f"Error in generate-sql-logic: {str(e)}")
-        return {"error": str(e)}
+        raise HTTPException(status_code=500, detail=str(e))
     finally:
         session.close()
+
+# Health check endpoint
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy", "message": "Backend is running successfully"}
 
 # Serve static files from the 'dist' folder
 static_path = os.path.join(os.path.dirname(__file__), 'dist')

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Plus, Upload, X, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -27,10 +28,9 @@ const DataMappingHub = () => {
   });
   const { toast } = useToast();
 
-  // Get the current origin and use port 3000 for backend (to match your main.py)
+  // Use the correct backend URL - your backend is running on port 3000
   const getBackendUrl = () => {
-    const currentHost = window.location.hostname;
-    return `http://${currentHost}:3000`;
+    return "http://localhost:3000";
   };
 
   const handleDrag = (e: React.DragEvent) => {
@@ -83,7 +83,7 @@ const DataMappingHub = () => {
     try {
       const formData = new FormData();
       formData.append('file', selectedFile);
-      formData.append('user', userDetails); // Backend expects 'user' field, not 'user_details'
+      formData.append('user', userDetails.trim()); // Make sure to trim whitespace
 
       console.log('Uploading to:', `${getBackendUrl()}/compare-and-recommend`);
       console.log('File details:', {
@@ -96,15 +96,16 @@ const DataMappingHub = () => {
       const response = await fetch(`${getBackendUrl()}/compare-and-recommend`, {
         method: 'POST',
         body: formData,
-        mode: 'cors',
+        // Don't set Content-Type header - let the browser set it with boundary for multipart/form-data
       });
 
       console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers);
 
       if (!response.ok) {
         const errorText = await response.text();
         console.error('Error response:', errorText);
-        throw new Error(`Failed to process file: ${response.status} ${response.statusText} - ${errorText}`);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
 
       const result = await response.json();
@@ -322,7 +323,6 @@ const DataMappingHub = () => {
               </div>
             )}
 
-            {/* User Details Input - Updated for simple string input */}
             <div className="space-y-2">
               <Label htmlFor="user-details">User ID</Label>
               <Input
