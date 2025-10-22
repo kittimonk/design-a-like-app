@@ -1,0 +1,54 @@
+name: SQL Flow Builder
+description: |
+  Automatically generate SQL + Job JSON pipelines from source-to-target mapping CSVs.
+  Supports CTE-based transformations, business-rule parsing, and full Copilot integration.
+
+# Triggers that launch the Agent
+triggers:
+  - pattern: "generate sql flow"
+    description: "Generate SQL + job JSON from a mapping CSV."
+  - pattern: "build job for"
+    description: "Build SQL + job JSON for the given mapping CSV file."
+  - pattern: "create pipeline for"
+    description: "Create a SQL transformation pipeline for the given CSV file."
+
+# Steps the Agent executes
+steps:
+  # Step 1: Ask for the CSV file path if not provided
+  - ask: |
+      Please provide the full CSV file path (e.g., `mappings/source_target_mapping_clean_v9_fixed.csv`)
+  
+  # Step 2: Detect target name dynamically from CSV file name
+  - run: |
+      filename=$(basename ${filePath})
+      target_name="${filename%.*}"
+      echo "Detected target name: ${target_name}"
+
+  # Step 3: Run the generator
+  - run: |
+      python build_sql_job.py ${filePath} --outdir generated_jobs
+
+  # Step 4: Summarize the results dynamically
+  - summarize: |
+      ✅ Generated SQL flow for **${filePath}**
+      **Target detected:** ${target_name}
+      
+      📂 Output directory: `generated_jobs/${target_name}_job/`
+      - SQL pipeline: `${target_name}_pipeline.sql`
+      - Job JSON: `${target_name}_job.json`
+      
+      🧠 Summary:
+      - Uses CTE-style transformations
+      - Full CASE/WHEN/END logic retained
+      - Business Rules converted to auditable WHERE clauses with inline comments
+
+      You can open the generated SQL file to inspect logic.
+
+  # Step 5: Open the generated SQL file in VS Code automatically
+  - run: |
+      code generated_jobs/${target_name}_job/${target_name}_pipeline.sql
+
+permissions:
+  filesystem: read-write
+  terminal: allowed
+  code_editor: open
