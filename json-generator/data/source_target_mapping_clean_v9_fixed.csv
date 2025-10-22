@@ -1,0 +1,141 @@
+"Source Schema ID *","DB Name/Incoming File Path *","Schema Name (if applicable) (auto populate)","Table/File Name * (auto populate)","Column Name * (auto populate)","Data Type * (auto populate)","Target Schema ID *","DB Name/Outgoing File Path * (auto populate)","Schema Name (if applicable) (auto populate)","Table/File Name * (auto populate)","Column/Field Name * (auto populate)","Data Type * (auto populate)","Business Rule (auto populate)","Join Clause (auto populate)","Transformation Rule/Logic (auto populate)"
+"T_ossbr_2_1_0002","RZ MBS","MCB (RZ,FS}/mcb@edrz.dfs.core.windows.net/MCB/ossbr_2_1/current","ossbr_2_1","borid","STRING","T_tantrum_0002","AAW","AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls","tantrum","tantrumid","bigint","1) reject the record if duplicate ossbr_2_1.SRSECCODE found and log an exception
+2) If ossbr_2_1.SRSECCODE is all spaces
+   reject the record and log an exception
+3) If ossbr_2_1.SRSTATUS <> 'A' (i.e. not active) exclude the record (no exception logging required)
+4) If security from GLS daily security master is found on mutual fund cross reference file (GLSXREF.WASTE_SECURITY_CODE = ossbr_2_1.SRSECCODE)
+   and the mutual fund is a SB Fund (1st 3 bytes of GLSXREF.FUND_COMPANY = 'SBB')
+   then match to the mutual fund instrument price file - GLSXREF.FUND_NUMBER = MFSPRIC.DTL_SEND_NUM.
+   If a match found then don't extract the record (no exception logging required - instrument already extracted by MFS extract).
+
+Note:
+1,2,3 -> Need to get the SRSECCODE and SRSTATUS column details and then frame WHERE clause
+For 4 -> need to know the entity details for GLSXREF and MFSPRIC","JOIN ossbr_2_1 mas WITH GLSXREF ref
+ON mas.SRSECCODE = ref.WASTE_SECURITY_CODE","CASE
+  WHEN LEFT(GLSXREF.SEND_CD, 3) = 'SBB' THEN
+    CASE
+      WHEN SUBSTRING(GLSXREF.SEND_CD, 4, 5) = MFSPRIC.PRC_DTL_SEND_NUM THEN NULL
+      ELSE
+        CASE
+          WHEN SUBSTRING(GLSXREF.SEND_CD, 4, 3) LIKE '[0-9]%' AND SUBSTRING(GLSXREF.SEND_CD, 7, 2) = '*' THEN CONCAT(230000000000, SUBSTRING(GLSXREF.SEND_CD, 4, 3))
+          WHEN LEN(TRIM(SUBSTRING(GLSXREF.SEND_CD, 4, 5))) > 0 THEN CONCAT(STRING_AGG(FORMAT(ASCII(SUBSTRING(GLSXREF.SEND_CD, 4, 1)), '00')), '000')
+          ELSE CONCAT('23000', STRING_AGG(FORMAT(ASCII(SUBSTRING(GLSXREF.SEND_CD, 4, 1)), '00')))
+        END
+    END
+  ELSE CONCAT('500', STRING_AGG(FORMAT(ASCII(ossbr_2_1.SRSECCODE), '00')))
+END AS tantrum_id
+FROM ossbr_2_1
+LEFT JOIN GLSXREF ON ossbr_2_1.SRSECCODE = GLSXREF.sm_SECURITY_CODE
+LEFT JOIN MFSPRIC ON SUBSTRING(GLSXREF.SEND_CD, 4, 5) = MFSPRIC.PRC_DTL_SEND_NUM"
+"T_GLSXREF_0003","0","0","GLSXREF","SEND_CD","STRING","T_tantrum_0002","AAW","AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls","tantrum","tantrumid","bigint","1) reject the record if duplicate ossbr_2_1.SRSECCODE found and log an exception
+2) If ossbr_2_1.SRSECCODE is all spaces
+   reject the record and log an exception
+3) If ossbr_2_1.SRSTATUS <> 'A' (i.e. not active) exclude the record (no exception logging required)
+4) If security from GLS daily security master is found on mutual fund cross reference file (GLSXREF.WASTE_SECURITY_CODE = ossbr_2_1.SRSECCODE)
+   and the mutual fund is a SB Fund (1st 3 bytes of GLSXREF.FUND_COMPANY = 'SBB')
+   then match to the mutual fund instrument price file - GLSXREF.FUND_NUMBER = MFSPRIC.DTL_SEND_NUM.
+   If a match found then don't extract the record (no exception logging required - instrument already extracted by MFS extract).
+
+Note:
+1,2,3 -> Need to get the SRSECCODE and SRSTATUS column details and then frame WHERE clause
+For 4 -> need to know the entity details for GLSXREF and MFSPRIC","JOIN ossbr_2_1 mas WITH GLSXREF ref
+ON mas.SRSECCODE = ref.WASTE_SECURITY_CODE","CASE
+  WHEN LEFT(GLSXREF.SEND_CD, 3) = 'SBB' THEN
+    CASE
+      WHEN SUBSTRING(GLSXREF.SEND_CD, 4, 5) = MFSPRIC.PRC_DTL_SEND_NUM THEN NULL
+      ELSE
+        CASE
+          WHEN SUBSTRING(GLSXREF.SEND_CD, 4, 3) LIKE '[0-9]%' AND SUBSTRING(GLSXREF.SEND_CD, 7, 2) = '*' THEN CONCAT(230000000000, SUBSTRING(GLSXREF.SEND_CD, 4, 3))
+          WHEN LEN(TRIM(SUBSTRING(GLSXREF.SEND_CD, 4, 5))) > 0 THEN CONCAT(STRING_AGG(FORMAT(ASCII(SUBSTRING(GLSXREF.SEND_CD, 4, 1)), '00')), '000')
+          ELSE CONCAT('23000', STRING_AGG(FORMAT(ASCII(SUBSTRING(GLSXREF.SEND_CD, 4, 1)), '00')))
+        END
+    END
+  ELSE CONCAT('500', STRING_AGG(FORMAT(ASCII(ossbr_2_1.SRSECCODE), '00')))
+END AS tantrum_id
+FROM ossbr_2_1
+LEFT JOIN GLSXREF ON ossbr_2_1.SRSECCODE = GLSXREF.sm_SECURITY_CODE
+LEFT JOIN MFSPRIC ON SUBSTRING(GLSXREF.SEND_CD, 4, 5) = MFSPRIC.PRC_DTL_SEND_NUM"
+"T_MFSPRIC_0002","0","0","MFSPRIC","DTL_SEND_NUM","INT64","T_tantrum_0002","AAW","AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls","tantrum","tantrumid","bigint","1) reject the record if duplicate ossbr_2_1.SRSECCODE found and log an exception
+2) If ossbr_2_1.SRSECCODE is all spaces
+   reject the record and log an exception
+3) If ossbr_2_1.SRSTATUS <> 'A' (i.e. not active) exclude the record (no exception logging required)
+4) If security from GLS daily security master is found on mutual fund cross reference file (GLSXREF.WASTE_SECURITY_CODE = ossbr_2_1.SRSECCODE)
+   and the mutual fund is a SB Fund (1st 3 bytes of GLSXREF.FUND_COMPANY = 'SBB')
+   then match to the mutual fund instrument price file - GLSXREF.FUND_NUMBER = MFSPRIC.DTL_SEND_NUM.
+   If a match found then don't extract the record (no exception logging required - instrument already extracted by MFS extract).
+
+Note:
+1,2,3 -> Need to get the SRSECCODE and SRSTATUS column details and then frame WHERE clause
+For 4 -> need to know the entity details for GLSXREF and MFSPRIC","JOIN ossbr_2_1 mas WITH GLSXREF ref
+ON mas.SRSECCODE = ref.WASTE_SECURITY_CODE","CASE
+  WHEN LEFT(GLSXREF.SEND_CD, 3) = 'SBB' THEN
+    CASE
+      WHEN SUBSTRING(GLSXREF.SEND_CD, 4, 5) = MFSPRIC.PRC_DTL_SEND_NUM THEN NULL
+      ELSE
+        CASE
+          WHEN SUBSTRING(GLSXREF.SEND_CD, 4, 3) LIKE '[0-9]%' AND SUBSTRING(GLSXREF.SEND_CD, 7, 2) = '*' THEN CONCAT(230000000000, SUBSTRING(GLSXREF.SEND_CD, 4, 3))
+          WHEN LEN(TRIM(SUBSTRING(GLSXREF.SEND_CD, 4, 5))) > 0 THEN CONCAT(STRING_AGG(FORMAT(ASCII(SUBSTRING(GLSXREF.SEND_CD, 4, 1)), '00')), '000')
+          ELSE CONCAT('23000', STRING_AGG(FORMAT(ASCII(SUBSTRING(GLSXREF.SEND_CD, 4, 1)), '00')))
+        END
+    END
+  ELSE CONCAT('500', STRING_AGG(FORMAT(ASCII(ossbr_2_1.SRSECCODE), '00')))
+END AS tantrum_id
+FROM ossbr_2_1
+LEFT JOIN GLSXREF ON ossbr_2_1.SRSECCODE = GLSXREF.sm_SECURITY_CODE
+LEFT JOIN MFSPRIC ON SUBSTRING(GLSXREF.SEND_CD, 4, 5) = MFSPRIC.PRC_DTL_SEND_NUM"
+"T_GLSXREF_0004","0","0","GLSXREF","SEND_DESC","STRING","T_tantrum_0003","AAW","AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls","tantrum","tantrum_na","string","","JOIN ossbr_2_1 mas WITH GLSXREF ref ON mas.SRSECCODE = ref.WASTE_SECURITY_CODE","CASE WHEN ref.sm_SECURITY_CODE IS NOT NULL THEN RTRIM(ref.FUND_DESC) ELSE RTRIM(mas.SRSHSBESE) END AS tantrum_na FROM ossbr_2_1 mas LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.sm_SECURITY_CODE"
+"T_ossbr_2_1_0003","RZ MBS","MCB{RZ,FS}/mcb@edrz.dfs.core.windows.net/MCB/ossbr_2_1/current","ossbr_2_1","shortdescription","STRING","T_tantrum_0003","AAW","AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls","tantrum","tantrum_na","string","","JOIN ossbr_2_1 mas WITH GLSXREF ref ON mas.SRSECCODE = ref.WASTE_SECURITY_CODE","CASE WHEN ref.sm_SECURITY_CODE IS NOT NULL THEN RTRIM(ref.FUND_DESC) ELSE RTRIM(mas.SRSHSBESE)"
+"T_ossbr_2_1_0004","RZ MBS","MCB{RZ,FS}/mcb@edrz.dfs.core.windows.net/MCB/ossbr_2_1/current","ossbr_2_1","srctype","STRING","T_tantrum_0004","AAW","AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls","tantrum","tantrum_family_CD","bigint","","JOIN ossbr_2_1 mas WITH GLSXREF ref ON mas.SRSECCODE = ref.WASTE_SECURITY_CODE","CASE WHEN ref.sm_SECURITY_CODE IS NOT NULL THEN CASE WHEN mas.SRSECTYPE IN ('380','331') THEN '+01313' ELSE '+01316' END ELSE CASE WHEN mas.SRSECTYPE = '220' THEN '+01312' WHEN mas.SRSECTYPE IN ('315','600','520','420','310','330','510') THEN '+01314'  WHEN mas.SRSECTYPE IN ('551','553','555','559','567','550','556','557','570','581','554','558','568','569','573','562','530') THEN '+01315' WHEN mas.SRSECTYPE IN ('210','230','240') THEN '+01309' WHEN mas.SRSECTYPE IN ('263','265','275','260','261','270','262','276','290','295') THEN '+01310' ELSE '+01316'  END END AS tantrum_family_cd LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.sm_SECURITY_CODE"
+"T_GLSXREF_0002","0","0","GLSXREF","WASTE-SECURITY-CD","STRING","T_tantrum_0006","AAW","AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls","tantrum","tantrum_issued_in","string","","join ossbr_2_1 mas with GLSXREF ref on mas.SRSECCODE = ref.WASTE_SECURITY_CODE","CASE -- Check if ossbr_2_1.SRSECCODE matches GLSXREF.sm_SECURITY_CODE 
+ WHEN ref.sm_SECURITY_CODE IS NOT NULL AND LEFT(ref.SEND_CD, 3) IN ('SBM', 'SBG', 'SBS','SBB', 'SBC') THEN 'Y' -- Match found and SEND_CD starts with specified values WHEN LEFT(mas.SRSHSBESE, 2) = 'SB' THEN 'Y' -- First two characters of SRSHSBESE are 'SB' ELSE 'N' -- Default to 'N' END AS tantrum_issued_in FROM ossbr_2_1 mas LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.sm_SECURITY_CODE"
+"T_GLSXREF_0003","0","0","GLSXREF","SEND-CD","STRING","T_tantrum_0006","AAW","AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls","tantrum","tantrum_issued_in","string","","join ossbr_2_1 mas with GLSXREF ref on mas.SRSECCODE = ref.WASTE_SECURITY_CODE","CASE -- Check if ossbr_2_1.SRSECCODE matches GLSXREF.sm_SECURITY_CODE 
+ WHEN ref.sm_SECURITY_CODE IS NOT NULL AND LEFT(ref.SEND_CD, 3) IN ('SBM', 'SBG', 'SBS','SBB', 'SBC') THEN 'Y' -- Match found and SEND_CD starts with specified values WHEN LEFT(mas.SRSHSBESE, 2) = 'SB' THEN 'Y' -- First two characters of SRSHSBESE are 'SB' ELSE 'N' -- Default to 'N' END AS tantrum_issued_in FROM ossbr_2_1 mas LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.sm_SECURITY_CODE"
+"T_ossbr_2_1_0003","RZ_MBS","MCB{RZ,FS}/mcb@edrz.dfs.core.windows.net/MCB/ossbr_2_1/current","ossbr_2_1","shortdescription","STRING","T_tantrum_0006","AAW","AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls","tantrum","tantrum_issued_in","string","","join ossbr_2_1 mas with GLSXREF ref on mas.SRSECCODE = ref.WASTE_SECURITY_CODE","CASE -- Check if ossbr_2_1.SRSECCODE matches GLSXREF.sm_SECURITY_CODE 
+ WHEN ref.sm_SECURITY_CODE IS NOT NULL AND LEFT(ref.SEND_CD, 3) IN ('SBM', 'SBG', 'SBS','SBB', 'SBC') THEN 'Y' -- Match found and SEND_CD starts with specified values WHEN LEFT(mas.SRSHSBESE, 2) = 'SB' THEN 'Y' -- First two characters of SRSHSBESE are 'SB' ELSE 'N' -- Default to 'N' END AS tantrum_issued_in FROM ossbr_2_1 mas LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.sm_SECURITY_CODE"
+"","","","","","","T_tantrum_0007","AAW","AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls","tantrum","tct_issue_in","string","","","Set to 'N'"
+"","","","","","","T_tantrum_0008","AAW","AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls","tantrum","issuer_org_id","bigint","","","Set to 0"
+"","","","","","","T_tantrum_0009","AAW","AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls","tantrum","secrty_view_CD","bigint","","","Set to +01342 (DB)."
+"T_ossbr_2_1_0006","RZ_MBS","MCB{RZ,FS}/mcb@edrz.dfs.core.windows.net/MCB/ossbr_2_1/current","ossbr_2_1","curr_type_CD","STRING","T_tantrum_0010","AAW","AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls","tantrum","curncy_CD","bigint","","","CASE -- Check if SRCURRCODE is one of the non-ISO standard and obsolete codes 
+ WHEN mas.SRCURRCODE IN ('BEF', 'DEM', 'FRF', 'GRD', 'TEP', 'ITL','NLG','PTE') THEN '+00618* -- Other -- If no match found, default to +00616 (CAD) ELSE CASE -- If secrty_curncy_id is -00003 or -00004, set to +00616 (CAD) WHEN mas.secrty_curncy_id IN (-3,-4) THEN '+00616' -- Use standard code mapping based on SRCURRCODE ELSE COALESCE(get stndrd_id('EDW','EDW_CURNCY _CD, 'N', mas.secrty_curncy_id), '+00616' -- Default to CAD if no match found) END END AS CURNCY_CD FROM ossbr_2_1 mas"
+"T_ossbr_2_1_0007","RZ_MBS","MCB{RZ,FS}/mcb@edrz.dfs.core.windows.net/MCB/ossbr_2_1/current","ossbr_2_1","foreigndate","STRING","T_tantrum_0011","AAW","AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls","tantrum","first_offer_dt","date","","","CASE -- Check if SBDSBDATE is a valid date and not equal to '0001-01-01', WHEN TRY_CAST(mas.SBDSBDATE AS DATE) IS NOT NULL AND mas.SBDSBDATE <> '0001-01-01' THEN mas.SBDSBDATE ELSE NULL --Set to NULL it the date is invalid or '0001-01-01' END AS FIRST_OFFER_DT FROM ossbr_2_1 mas"
+"","","","","","","T_tantrum_0012","AAW","AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls","tantrum","final_offer_dt","date","","","Set to NULL"
+"","","","","","","T_tantrum_0013","AAW","AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls","tantrum","lifecy_CD","bigint","","","Set to +00114 (Active)."
+"","","","","","","T_tantrum_0014","AAW","AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls","tantrum","source_appl_CD","bigint","","","Set to +00239 (GLS)"
+"","","","","","","T_tantrum_0015","AAW","AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls","tantrum","asset_liblty_CD","bigint","","","Set to +00331 (Asset)."
+"","","","","","","T_tantrum_0016","AAW","AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls","tantrum","varble_rate_id","bigint","","","Set to 0"
+"T_ossbr_2_1_0008","RZ_MBS","MCB{RZ,FS}/mcb@edrz.dfs.core.windows.net/MCB/ossbr_2_1/current","ossbr_2_1","SRPFREQ","STRING","T_tantrum_0017","AAW","AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls","tantrum","int_freq_CD","bigint","","","CASE -- Check if tantrum_FAMLY_CD is +01309 (MMK) or +01310 (FIX) 
+ WHEN tantrum.INSTR_FAMILY_CD IN (*+01309*, '+01310') THEN COALESCE(get_stndrd _id('EDW', 'EDW_INT_FREQ_CD*', 'N', mas.SRPREQ),'-00001' -- Default to Not Applicable if no standard mapping is found 
+ ELSE '-00001' -- Not Applicable 
+ END AS INT_FREQ_CD FROM ossbr_2_1 mas LEFT JOIN tantrum tantrum ON mas.SRSECCODE = tantrum.SRSECCODE"
+"T_tantrum_0004","AAW","AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls","tantrum","tantrum_family_CD","bigint","T_tantrum_0017","AAW","AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls","tantrum","int_freq_CD","bigint","","","CASE -- Check if tantrum_FAMLY_CD is +01309 (MMK) or +01310 (FIX) 
+ WHEN tantrum.INSTR_FAMILY_CD IN (*+01309*, '+01310') THEN COALESCE(get_stndrd _id('EDW', 'EDW_INT_FREQ_CD*', 'N', mas.SRPREQ),'-00001' -- Default to Not Applicable if no standard mapping is found 
+ ELSE '-00001' -- Not Applicable 
+ END AS INT_FREQ_CD FROM ossbr_2_1 mas LEFT JOIN tantrum tantrum ON mas.SRSECCODE = tantrum.SRSECCODE"
+"T_ossbr_2_1_0009","RZ_MBS","MCB{RZ,FS}/mcb@edrz.dfs.core.windows.net/MCB/ossbr_2_1/current","ossbr_2_1","maturitydate","STRING","T_tantrum_0018","AAW","AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls","tantrum","int_freq_CD","bigint","","","CASE -- Check if tantrum_FAMLY_CD is +01309 (MMK) or +01310 (FIX) 
+ WHEN tantrum.INSTR_FAMILY_CD IN (*+01309*, '+01310') THEN COALESCE(get_stndrd _id('EDW', 'EDW_INT_FREQ_CD*', 'N', mas.SRPREQ),'-00001' -- Default to Not Applicable if no standard mapping is found 
+ ELSE '-00001' -- Not Applicable 
+ END AS INT_FREQ_CD FROM ossbr_2_1 mas LEFT JOIN tantrum tantrum ON mas.SRSECCODE = tantrum.SRSECCODE"
+"T_ossbr_2_1_0010","RZ_MBS","MCB{RZ,FS}/mcb@edrz.dfs.core.windows.net/MCB/ossbr_2_1/current","ossbr_2_1","interestrate","STRING","T_tantrum_0019","AAW","AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls","tantrum","int_rt","decimal","","","CASE WHEN TRY_CAST(mas.SRPMTRATE AS FLAOT) IS NOT NULL AND mas.SRPMTRATE > 0 AND mas.SRPMTRATE <= 999.99999 THEN mas.SRPMTRATE ELSE NULL END AS INT_RT FROM ossbr_2_1 mas"
+"","","","","","","T_tantrum_0020","AAW","AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls","tantrum","int_rate_id","bigint","","","Set to 0"
+"T_ossbr_2_1_0004","RZ_MBS","MCB{RZ,FS}/mcb@edrz.dfs.core.windows.net/MCB/ossbr_2_1/current","ossbr_2_1","srctype","STRING","T_tantrum_0021","AAW","AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls","tantrum","erlcsh_eligbl_in","string","","","CASE WHEN mas.SRSECTYPE = '210' THEN 'N' ELSE 'Y' END AS ERLCSH_ELIGBL_IN FROM ossbr_2_1 mas"
+"","","","","","","T_tantrum_0022","AAW","AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls","tantrum","compnd_int_CD","bigint","","","Set to -2 (No Source)."
+"","","","","","","T_tantrum_0023","AAW","AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls","tantrum","int_relatn_CD","bigint","","","Set to -2 (No Source)."
+"T_GLSXREF_0002","0","0","GLSXREF","WASTE_SECURITY_CD","STRING","T_tantrum_0024","AAW","AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls","tantrum","mu_fund_id","string","","","CASE WHEN ref.sm_SECURITY_CODE IS NOT NULL THEN ref.SEND_CD ELSE 00000000' END AS mu_fund_ID FROM ossbr_2_1 mas LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.sm_SECURITY_CODE"
+"T_GLSXREF_0003","0","0","GLSXREF","SEND-CD","STRING","T_tantrum_0024","AAW","AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls","tantrum","mu_fund_id","string","","","CASE WHEN ref.sm_SECURITY_CODE IS NOT NULL THEN ref.SEND_CD ELSE 00000000' END AS mu_fund_ID FROM ossbr_2_1 mas LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.sm_SECURITY_CODE"
+"T_GLSXREF_0002","0","0","GLSXREF","WASTE_SECURITY_CD","STRING","T_tantrum_0025","AAW","AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls","tantrum","mu_fund_family_CD","bigint","","","CASE WHEN ref.sm_SECURITY_CODE IS NOT NULL AND LEFT(ref.SEND_CD, 3) = 'SBB' THEN CASE WHEN edx.MFIN_SEND_NUMBER IS NOT NULL THEN CASE WHEN edx.MFIN_ASSET_ORDER = 1 THEN +08830' -- MMK /n WHEN edx.MFIN_ASSET_ORDER = 2 THEN '+08831' -- PMMK /n WHEN edx.MFIN_ASSET_ORDER = 3 THEN +08832' -- ING /n WHEN edx.MFIN_ASSET_ORDER = 4 THEN '+08833' -- BAL /n WHEN edx.MFIN_ASSET_ORDER = 5 THEN +08834' -- INX /n WHEN edx.MFIN_ASSET_ORDER = 6 THEN '+08835' -- CDNEQ /n WHEN edx.MFIN_ASSET_ORDER = 7 THEN '+08836' -- USEQ /n WHEN edx.MFIN_ASSET_ORDER = 8 THEN '+08837' -- SEC /n WHEN edx.MFIN_ASSET_ORDER = 9 THEN '+08838' -- GLO /n WHEN edx.MFIN_ASSET_ORDER = 10 THEN '+08839' -- MAPM /n WHEN edx.MFIN_ASSET_ORDER = 11 THEN '+08840' -- MAP /n WHEN edx.MFIN_ASSET_ORDER - 12 THEN '+08841' -- MAP /n WHEN edx.MFIN_ASSET_ORDER - 13 THEN +08842' -- GIC /n WHEN edx.MFIN_ASSET_ORDER = 14 THEN +12553' -- COMFORT /n WHEN edx.MFIN_ASSET_ORDER = 15 THEN +12554* -- ADVANTAGE /n WHEN edx.MFIN_ASSET_ORDER = 16 THEN '+12559' -- CORPORATE /n ELSE '-00004' -- Invalid /n END ELSE -00001' -- Not Applicable /n END ELSE -00001' -- Not Applicable /n END AS mu_fund_FAMILY_CD FROM ossbr_2_1 mas LEFT JOIN GLSREF ref ON mas.SRSECCODE = ref.sm_SECURITY_CODE LEFT JOIN MFIN ed ON SUBSTRING (ref.SEND_CD, 4, 5) = edx.MFIN_SEND_NUMBER"
+"T_GLSXREF_0003","0","0","GLSXREF","SEND-CD","STRING","T_tantrum_0025","AAW","AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls","tantrum","mu_fund_family_CD","bigint","","","CASE WHEN ref.sm_SECURITY_CODE IS NOT NULL AND LEFT(ref.SEND_CD, 3) = 'SBB' THEN CASE WHEN edx.MFIN_SEND_NUMBER IS NOT NULL THEN CASE WHEN edx.MFIN_ASSET_ORDER = 1 THEN +08830' -- MMK /n WHEN edx.MFIN_ASSET_ORDER = 2 THEN '+08831' -- PMMK /n WHEN edx.MFIN_ASSET_ORDER = 3 THEN +08832' -- ING /n WHEN edx.MFIN_ASSET_ORDER = 4 THEN '+08833' -- BAL /n WHEN edx.MFIN_ASSET_ORDER = 5 THEN +08834' -- INX /n WHEN edx.MFIN_ASSET_ORDER = 6 THEN '+08835' -- CDNEQ /n WHEN edx.MFIN_ASSET_ORDER = 7 THEN '+08836' -- USEQ /n WHEN edx.MFIN_ASSET_ORDER = 8 THEN '+08837' -- SEC /n WHEN edx.MFIN_ASSET_ORDER = 9 THEN '+08838' -- GLO /n WHEN edx.MFIN_ASSET_ORDER = 10 THEN '+08839' -- MAPM /n WHEN edx.MFIN_ASSET_ORDER = 11 THEN '+08840' -- MAP /n WHEN edx.MFIN_ASSET_ORDER - 12 THEN '+08841' -- MAP /n WHEN edx.MFIN_ASSET_ORDER - 13 THEN +08842' -- GIC /n WHEN edx.MFIN_ASSET_ORDER = 14 THEN +12553' -- COMFORT /n WHEN edx.MFIN_ASSET_ORDER = 15 THEN +12554* -- ADVANTAGE /n WHEN edx.MFIN_ASSET_ORDER = 16 THEN '+12559' -- CORPORATE /n ELSE '-00004' -- Invalid /n END ELSE -00001' -- Not Applicable /n END ELSE -00001' -- Not Applicable /n END AS mu_fund_FAMILY_CD FROM ossbr_2_1 mas LEFT JOIN GLSREF ref ON mas.SRSECCODE = ref.sm_SECURITY_CODE LEFT JOIN MFIN ed ON SUBSTRING (ref.SEND_CD, 4, 5) = edx.MFIN_SEND_NUMBER"
+"T_MFIN_0002","0","0","MFIN","MFIN-FUND-NUMBER","INT64","T_tantrum_0025","AAW","AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls","tantrum","mu_fund_family_CD","bigint","","","CASE WHEN ref.sm_SECURITY_CODE IS NOT NULL AND LEFT(ref.SEND_CD, 3) = 'SBB' THEN CASE WHEN edx.MFIN_SEND_NUMBER IS NOT NULL THEN CASE WHEN edx.MFIN_ASSET_ORDER = 1 THEN +08830' -- MMK /n WHEN edx.MFIN_ASSET_ORDER = 2 THEN '+08831' -- PMMK /n WHEN edx.MFIN_ASSET_ORDER = 3 THEN +08832' -- ING /n WHEN edx.MFIN_ASSET_ORDER = 4 THEN '+08833' -- BAL /n WHEN edx.MFIN_ASSET_ORDER = 5 THEN +08834' -- INX /n WHEN edx.MFIN_ASSET_ORDER = 6 THEN '+08835' -- CDNEQ /n WHEN edx.MFIN_ASSET_ORDER = 7 THEN '+08836' -- USEQ /n WHEN edx.MFIN_ASSET_ORDER = 8 THEN '+08837' -- SEC /n WHEN edx.MFIN_ASSET_ORDER = 9 THEN '+08838' -- GLO /n WHEN edx.MFIN_ASSET_ORDER = 10 THEN '+08839' -- MAPM /n WHEN edx.MFIN_ASSET_ORDER = 11 THEN '+08840' -- MAP /n WHEN edx.MFIN_ASSET_ORDER - 12 THEN '+08841' -- MAP /n WHEN edx.MFIN_ASSET_ORDER - 13 THEN +08842' -- GIC /n WHEN edx.MFIN_ASSET_ORDER = 14 THEN +12553' -- COMFORT /n WHEN edx.MFIN_ASSET_ORDER = 15 THEN +12554* -- ADVANTAGE /n WHEN edx.MFIN_ASSET_ORDER = 16 THEN '+12559' -- CORPORATE /n ELSE '-00004' -- Invalid /n END ELSE -00001' -- Not Applicable /n END ELSE -00001' -- Not Applicable /n END AS mu_fund_FAMILY_CD FROM ossbr_2_1 mas LEFT JOIN GLSREF ref ON mas.SRSECCODE = ref.sm_SECURITY_CODE LEFT JOIN MFIN ed ON SUBSTRING (ref.SEND_CD, 4, 5) = edx.MFIN_SEND_NUMBER"
+"T_MFIN_0003","0","0","MFIN","MFIN-ASSET-ORDER","STRING","T_tantrum_0025","AAW","AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls","tantrum","mu_fund_family_CD","bigint","","","CASE WHEN ref.sm_SECURITY_CODE IS NOT NULL AND LEFT(ref.SEND_CD, 3) = 'SBB' THEN CASE WHEN edx.MFIN_SEND_NUMBER IS NOT NULL THEN CASE WHEN edx.MFIN_ASSET_ORDER = 1 THEN +08830' -- MMK /n WHEN edx.MFIN_ASSET_ORDER = 2 THEN '+08831' -- PMMK /n WHEN edx.MFIN_ASSET_ORDER = 3 THEN +08832' -- ING /n WHEN edx.MFIN_ASSET_ORDER = 4 THEN '+08833' -- BAL /n WHEN edx.MFIN_ASSET_ORDER = 5 THEN +08834' -- INX /n WHEN edx.MFIN_ASSET_ORDER = 6 THEN '+08835' -- CDNEQ /n WHEN edx.MFIN_ASSET_ORDER = 7 THEN '+08836' -- USEQ /n WHEN edx.MFIN_ASSET_ORDER = 8 THEN '+08837' -- SEC /n WHEN edx.MFIN_ASSET_ORDER = 9 THEN '+08838' -- GLO /n WHEN edx.MFIN_ASSET_ORDER = 10 THEN '+08839' -- MAPM /n WHEN edx.MFIN_ASSET_ORDER = 11 THEN '+08840' -- MAP /n WHEN edx.MFIN_ASSET_ORDER - 12 THEN '+08841' -- MAP /n WHEN edx.MFIN_ASSET_ORDER - 13 THEN +08842' -- GIC /n WHEN edx.MFIN_ASSET_ORDER = 14 THEN +12553' -- COMFORT /n WHEN edx.MFIN_ASSET_ORDER = 15 THEN +12554* -- ADVANTAGE /n WHEN edx.MFIN_ASSET_ORDER = 16 THEN '+12559' -- CORPORATE /n ELSE '-00004' -- Invalid /n END ELSE -00001' -- Not Applicable /n END ELSE -00001' -- Not Applicable /n END AS mu_fund_FAMILY_CD FROM ossbr_2_1 mas LEFT JOIN GLSREF ref ON mas.SRSECCODE = ref.sm_SECURITY_CODE LEFT JOIN MFIN ed ON SUBSTRING (ref.SEND_CD, 4, 5) = edx.MFIN_SEND_NUMBER"
+"T_ossbr_2_1_0011","RZ_MBS","MCB{RZ,FS}/mcb@edrz.dfs.core.windows.net/MCB/ossbr_2_1/current","ossbr_2_1","cusip","STRING","T_tantrum_0026","AAW","AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls","tantrum","cusip_id","string","","","CASE WHEN RTRIM(mas.SRCUSIPNBR)=  THEN '000000000' ELSE mas.SRCUSIPNBR END AS CUSIP_ID FROM ossbr_2_1 mas"
+"T_ossbr_2_1_0002","RZ_MBS","MCB{RZ,FS}/mcb@edrz.dfs.core.windows.net/MCB/ossbr_2_1/current","ossbr_2_1","borid","STRING","T_tantrum_0027","AAW","AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls","tantrum","sm_secrty_id","string","","","Straight move (if date field then set Fromat source date as YYYY-MM-DD)"
+"T_ossbr_2_1_0004","RZ_MBS","MCB{RZ,FS}/mcb@edrz.dfs.core.windows.net/MCB/ossbr_2_1/current","ossbr_2_1","srctype","STRING","T_tantrum_0028","AAW","AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls","tantrum","sm_secrty_type_id","bigint","","","CASE WHEN TRY_CAST(mas.SRSECTYPE AS INT) IS NOT NULL THEN mas.SRSECTYPE ELSE '+00000' END AS sm.SECRTY_TYPE_ID FROM ossbr_2_1 mas"
+"","","","","","","T_tantrum_0029","AAW","AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls","tantrum","fis_secrty_id","bigint","","","Set to 0"
+"","","","","","","T_tantrum_0030","AAW","AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls","tantrum","fis_paper_type_CD","bigint","","","Set A to A --1A"
+"","","","","","","T_tantrum_0031","AAW","AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls","tantrum","trm_prodct_id","bigint","","","Set to 0"
+"T_ossbr_2_1_0005","RZ_MBS","MCB{RZ,FS}/mcb@edrz.dfs.core.windows.net/MCB/ossbr_2_1/current","ossbr_2_1","borclass","STRING","T_tantrum_0032","AAW","AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls","tantrum","secrty_class_id","bigint","","","CASE WHEN TRY_CAST(mas.SRSECCLAS AS INT) IS NOT NULL THEN mas.SRSECCLAS ELSE '0' END AS SECRTY_CLASS_ID FROM ossbr_2_1 mas"
+"","","","","","","T_tantrum_0033","AAW","AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls","tantrum","sumary_combin_id","string","","",""
+"","","","","","","T_tantrum_0034","AAW","AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls","tantrum","term_family_CD","bigint","","","Set A to A --1A"
+"","","","","","","T_tantrum_0035","AAW","AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls","tantrum","last_change_dt","date","","","Set to etl.effective.start.date in the fromat yyyy-mm-dd"
+"","","","","","","T_tantrum_0038","AAW","AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls","tantrum","to_dt","date","","","Set to '9999-12-31' and cast it as date"
+"","","","","","","T_tantrum_0037","AAW","AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls","tantrum","row_exclsn_dt","date","","","Set to NULL"
+"","","","","","","T_tantrum_0038","AAW","AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls","tantrum","load_ts","timestamp","","","set to current_timestamp()"
