@@ -1,4 +1,4 @@
-# build_sql_job.py (v5) — outputs full SQL, full JSON, full audit markdown
+# build_sql_job.py (v4) — outputs full SQL, full JSON, full audit markdown
 import os, re, json
 import pandas as pd
 from collections import Counter
@@ -131,12 +131,6 @@ def build_final_select(df: pd.DataFrame) -> Tuple[str, List[Dict[str, str]]]:
             raw_trans, target_col=tgt, src_col=src_col
         )
 
-        # Prefer the smart parser if the rule starts with "Set"
-        if isinstance(raw_trans, str) and re.match(r"(?i)^\s*set\b", raw_trans.strip()):
-            smart_expr = parse_set_rule(raw_trans)
-            if smart_expr:
-                expr = smart_expr
-
         # If the user already included "AS <tgt>" inside expr, keep as-is; else alias here.
         if re.search(rf"(?i)\bas\s+{re.escape(tgt)}\b", expr):
             select_line = "    " + squash(expr)
@@ -151,8 +145,8 @@ def build_final_select(df: pd.DataFrame) -> Tuple[str, List[Dict[str, str]]]:
         audit_rows.append({
             "row": str(idx+1),
             "target": tgt,
-            "raw": (raw_trans or "").strip(),
-            "sql": (expr or "").strip(),
+            "raw": raw_trans.strip(),
+            "sql": expr.strip(),
             "note": (trailing_comment or "")
         })
 
@@ -241,10 +235,9 @@ def write_audit_md(audit_rows: List[Dict[str, str]], md_path: str):
         f.write("| Row | Target Column | Raw Transformation (verbatim) | Parsed SQL Expression | Notes |\n")
         f.write("|---:|---|---|---|---|\n")
         for r in audit_rows:
-            # escape | in markdown table safely and silence invalid escape warnings
-            raw = (r["raw"] or "").replace("\n", "<br>").replace("|", "\\|")
-            sql = (r["sql"] or "").replace("\n", "<br>").replace("|", "\\|")
-            note = (r["note"] or "").replace("\n", "<br>").replace("|", "\\|")
+            raw = r["raw"].replace("\n", "<br>").replace("|", "\|")
+            sql = r["sql"].replace("\n", "<br>").replace("|", "\|")
+            note = (r["note"] or "").replace("\n", "<br>").replace("|", "\|")
             f.write(f"| {r['row']} | `{r['target']}` | {raw} | `{sql}` | {note} |\n")
 
 # ---------- Orchestration ----------

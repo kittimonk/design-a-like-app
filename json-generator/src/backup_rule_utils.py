@@ -1,4 +1,4 @@
-# rule_utils.py (v5) — preserves multi-line CASE logic; builds auditable WHERE; normalizes joins; smart "Set" parsing
+# rule_utils.py (v4) — preserves multi-line CASE logic; builds auditable WHERE; normalizes joins
 import re
 from typing import List, Tuple, Optional
 
@@ -67,7 +67,7 @@ def business_rules_to_where(biz_text: str) -> str:
 # ---------- Transformation parsing (CASE preservation) ----------
 
 def parse_literal_set(trans: str) -> Optional[str]:
-    """Detect 'Set to <X>' patterns → return a SQL literal (legacy simple handler)."""
+    """Detect 'Set to <X>' patterns → return a SQL literal."""
     if not trans:
         return None
     m = re.search(r"(?i)\bset\s+to\s+(.+?)(?:\s*$|\.)", trans.strip())
@@ -98,58 +98,15 @@ def extract_case_core(trans_text: str) -> Tuple[str, str]:
     if not _CASE_START.match(txt):
         return (txt, "")
 
+    # Find the first FROM after the CASE block begins.
+    # We keep everything up to (but not including) FROM in "core",
+    # and emit the remainder as a commented context.
     parts = _FROM_SPLIT.split(txt, maxsplit=1)
     if len(parts) == 2:
         core = parts[0].rstrip()
         trailing = "FROM " + parts[1].strip()
         return (core, f"-- Source context preserved: {squash(trailing)}")
     return (txt, "")
-
-# ---------- Smart Parser for 'Set' Rules (enhanced) ----------
-
-def parse_set_rule(rule_text: str) -> Optional[str]:
-    """Detects and converts free-form 'Set to ...' rules into valid SQL expressions."""
-    if not rule_text or not isinstance(rule_text, str):
-        return None
-
-    # keep original for picking exact tokens (like quoted dates), but also a lower variant
-    original = rule_text.strip()
-    text = original.lower()
-
-    # NULL
-    if "set to null" in text:
-        return "NULL"
-
-    # current timestamp (function, not string)
-    if "current_timestamp" in text:
-        return "CURRENT_TIMESTAMP()"
-
-    # ETL effective date parameter
-    if "etl.effective.start.date" in text:
-        # use triple double quotes around the variable
-        return "TO_DATE('\"\"\"${etl.effective.start.date}\"\"\"', 'yyyyMMddHHmmss')"
-
-    # Dates like 9999-12-31 (optionally with cast directions)
-    mdate = re.search(r"(\d{4}-\d{2}-\d{2})", original)
-    if mdate:
-        d = mdate.group(1)
-        if "cast" in text:
-            return f"CAST('{d}' AS DATE)"
-        return f"'{d}'"
-
-    # “Set X to Y” or “Set to Y”
-    m = re.search(r"(?i)set(?:\s+\w+)?\s+to\s+(['\"]?)([A-Za-z0-9_]+)\1", original)
-    if m:
-        val = m.group(2)
-        return f"'{val}'"
-
-    # fallback: strip comment markers and boilerplate
-    cleaned = re.sub(r"--.*", "", original)
-    cleaned = re.sub(r"(?i)\bset\s+to\b", "", cleaned)
-    cleaned = re.sub(r"(?i)\bset\b", "", cleaned).strip(" :\"'")
-    if cleaned.upper() == "NULL":
-        return "NULL"
-    return f"'{cleaned}'" if cleaned else None
 
 def transformation_expression(trans: str, target_col: str, src_col: str) -> Tuple[str, Optional[str]]:
     """
@@ -163,19 +120,15 @@ def transformation_expression(trans: str, target_col: str, src_col: str) -> Tupl
         # no transformation text; use source column if present
         return (src_col or "NULL", None)
 
-    # Smart "Set ..." handler first
-    if re.match(r"(?i)^\s*set\b", trans):
-        lit = parse_set_rule(trans)
-        if lit is not None:
-            return (lit, None)
-
-    # Simple literal "set to ..." (legacy)
+    # Handle simple "Set to ..." cases
     lit = parse_literal_set(trans)
     if lit is not None:
         return (lit, None)
 
-    # Preserve CASE body and move trailing FROM/JOIN into comment
+    # If full fragment includes "AS <target>", we'll keep the alias if present;
+    # but we'll still strip trailing FROM context if it exists.
     core, trailing_comment = extract_case_core(trans)
+    # If user included "AS <target_col>" in the fragment, leave as-is; else add alias later in caller.
     return (core, trailing_comment or None)
 
 # ---------- Joins ----------
@@ -195,3 +148,42 @@ def normalize_join(join_text: str) -> str:
 def detect_lookup(texts: List[str]) -> bool:
     blob = " ".join([t for t in texts if t])
     return bool(re.search(r"(?i)\blookup\b|\bref(erence)?\b|standard[_\s-]*code", blob))
+
+
+# ---------- Parse rule smart function ----------
+
+def parse_set_rule(rule_text: str) -> str:
+    """Detects and converts free-form 'Set to ...' rules into valid SQL expressions."""
+    if not rule_text or not isinstance(rule_text, str):
+        return None
+
+    text = rule_text.strip().lower()
+
+    # Handle NULLs
+    if "set to null" in text:
+        return "NULL"
+
+    # Handle current_timestamp()
+    if "current_timestamp" in text:
+        return "CURRENT_TIMESTAMP()"
+
+    # Handle etl effective date patterns
+    if "etl.effective.start.date" in text:
+        return "TO_DATE('${etl.effective.start.date}', 'yyyyMMddHHmmss')"
+
+    # Handle literal date values
+    if re.search(r"\d{4}-\d{2}-\d{2}", text):
+        date_match = re.search(r"(\d{4}-\d{2}-\d{2})", text)
+        if "cast" in text:
+            return f"CAST('{date_match.group(1)}' AS DATE)"
+        return f"'{date_match.group(1)}'"
+
+    # Handle single char/literal rules like 'Set A to A --1A'
+    if re.search(r"set\s+[a-z0-9_]+\s+to\s+([a-z0-9]+)", rule_text, re.I):
+        val = re.findall(r"set\s+[a-z0-9_]+\s+to\s+([a-z0-9]+)", rule_text, re.I)[0]
+        return f"'{val}'"
+
+    # Fallback: clean comment markers and return sanitized text
+    cleaned = re.sub(r"--.*", "", rule_text)
+    cleaned = cleaned.replace("set to", "").replace("set", "").strip()
+    return f"'{cleaned}'" if cleaned else "NULL"
