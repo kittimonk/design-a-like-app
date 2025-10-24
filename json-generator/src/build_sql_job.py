@@ -116,44 +116,50 @@ def build_step1_cte(df: pd.DataFrame, primary_src: str) -> str:
 def build_final_select(df: pd.DataFrame) -> Tuple[str, List[Dict[str, str]]]:
     """
     Return SELECT body string plus an audit list of {"row", "target", "raw", "sql", "note"}.
+    Handles duplicate target columns by merging transformation rules.
     """
     lines = []
     audit_rows = []
-    for idx, row in df.iterrows():
-        tgt = row.get("tgt_column") or row.get("Column/Field Name * (auto populate)", "")
-        if not tgt:
-            continue
 
-        raw_trans = row.get("transformation_rule", "")
-        src_col   = row.get("src_column", "")
+    # Group by target column (case-insensitive)
+    grouped = df.groupby(df["tgt_column"].str.lower(), dropna=False)
+
+    for tgt_lower, group in grouped:
+        tgt = group["tgt_column"].iloc[0]
+        # Combine multiple rows for same target
+        unique_rules = list({r.strip() for r in group.get("transformation_rule", []) if str(r).strip()})
+        unique_sources = list({s.strip() for s in group.get("src_column", []) if str(s).strip()})
+        merged_note = ""
+
+        # Pick first transformation logic
+        if len(unique_rules) > 1:
+            merged_note = f"-- NOTE: merged {len(unique_rules)} variations for target column '{tgt}'"
+        elif len(group) > 1:
+            merged_note = f"-- NOTE: merged {len(group)} duplicate definitions for target column '{tgt}'"
+
+        raw_trans = unique_rules[0] if unique_rules else ""
+        src_col = unique_sources[0] if unique_sources else ""
 
         expr, trailing_comment = transformation_expression(
             raw_trans, target_col=tgt, src_col=src_col
         )
 
-        # Prefer the smart parser if the rule starts with "Set"
-        if isinstance(raw_trans, str) and re.match(r"(?i)^\s*set\b", raw_trans.strip()):
-            smart_expr = parse_set_rule(raw_trans)
-            if smart_expr:
-                expr = smart_expr
-
-        # If the user already included "AS <tgt>" inside expr, keep as-is; else alias here.
-        if re.search(rf"(?i)\bas\s+{re.escape(tgt)}\b", expr):
-            select_line = "    " + squash(expr)
-        else:
-            select_line = f"    {expr} AS {tgt}"
-
+        # Build SQL select line
+        select_line = f"    {expr} AS {tgt}"
+        if merged_note:
+            select_line = f"    {merged_note}\n{select_line}"
         if trailing_comment:
             select_line = f"{select_line}\n    {trailing_comment}"
 
         lines.append(select_line)
 
+        # Audit tracking
         audit_rows.append({
-            "row": str(idx+1),
+            "row": f"{group.index.min() + 1}",
             "target": tgt,
-            "raw": (raw_trans or "").strip(),
-            "sql": (expr or "").strip(),
-            "note": (trailing_comment or "")
+            "raw": " | ".join(unique_rules) or "",
+            "sql": expr.strip(),
+            "note": merged_note or (trailing_comment or "")
         })
 
     return "SELECT\n" + ",\n".join(lines) + "\nFROM step1", audit_rows
