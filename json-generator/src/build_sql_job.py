@@ -214,8 +214,7 @@ def build_final_select(df: pd.DataFrame) -> Tuple[str, List[Dict[str, str]]]:
         raw_trans = unique_rules[0] if unique_rules else ""
         src_col = unique_sources[0] if unique_sources else ""
 
-        # Build expression (preserving CASE and FROM)
-        # Safely extract target datatype from any row in the group
+        # Safely extract target datatype
         tgt_dtype = None
         if "tgt_datatype" in group.columns and not group["tgt_datatype"].isnull().all():
             tgt_dtype = group["tgt_datatype"].iloc[0]
@@ -224,17 +223,16 @@ def build_final_select(df: pd.DataFrame) -> Tuple[str, List[Dict[str, str]]]:
             raw_trans, target_col=tgt, src_col=src_col, target_datatype=tgt_dtype
         )
 
-        # Expand placeholders from parse_set_rule results
+        # Expand placeholders (e.g., {source_column})
         if "{source_column}" in expr:
             expr = expr.replace("{source_column}", src_col or "NULL")
 
-        # Cleanup: strip stray developer notes from literals
+        # Cleanup trailing notes from literals
         if re.fullmatch(r"'[^']*'", expr.strip()):
             expr_clean = expr.strip().strip("'")
             expr = f"'{_strip_trailing_notes(expr_clean)}'"
         elif re.fullmatch(r"[-+]?\d+(\.\d+)?", expr.strip().strip("'")):
             expr = _strip_trailing_notes(expr.strip().strip("'"))
-
 
         # Dequote whole CASE/SELECT expressions
         if re.match(r"^['\"]\s*(CASE|SELECT)\b", expr, re.I):
@@ -243,7 +241,7 @@ def build_final_select(df: pd.DataFrame) -> Tuple[str, List[Dict[str, str]]]:
         # Remove trailing semicolons
         expr = re.sub(r";+$", "", expr).strip()
 
-        # Optional: improve CASE readability (indent WHEN/END)
+        # Optional: improve CASE readability
         if expr.strip().upper().startswith("CASE"):
             expr = re.sub(r"(?i)\b(case)\b", r"\1\n  ", expr)
             expr = re.sub(r"(?i)\b(when)\b", r"\n    \1", expr)
@@ -251,12 +249,11 @@ def build_final_select(df: pd.DataFrame) -> Tuple[str, List[Dict[str, str]]]:
             expr = re.sub(r"(?i)\b(else)\b", r"\n    \1", expr)
             expr = re.sub(r"(?i)\bend\b", r"\n  END", expr)
 
-        # Datatype-aware CAST for literals/NULLs
-        if _needs_cast(expr) and tgt_dtype:
-            inferred = _infer_datatype_from_value(expr, tgt_dtype)
-            expr = _cast_to_datatype(expr, inferred)
+        # 🟢 Enforce datatype-aware CAST for all literals/NULLs (fix reintroduced)
+        if tgt_dtype:
+            expr = _cast_to_datatype(expr, tgt_dtype)
 
-        # Avoid duplicate aliasing (if expr already ends with AS something)
+        # Avoid duplicate aliasing
         if not re.search(r"(?i)\bas\s+\w+\b\s*$", expr.strip()):
             select_line = f"    {expr} AS {_sanitize_target_alias(tgt)}"
         else:
@@ -270,7 +267,7 @@ def build_final_select(df: pd.DataFrame) -> Tuple[str, List[Dict[str, str]]]:
 
         lines.append(select_line)
 
-        # Audit tracking (store the un-prettified expr for traceability)
+        # Audit tracking
         audit_rows.append({
             "row": f"{group.index.min() + 1}",
             "target": tgt,
