@@ -191,7 +191,10 @@ def _cast_to_datatype(expr: str, target_datatype: str, default_val: Optional[str
 # ---------- Main transformation expression ----------
 
 def parse_set_rule(rule_text: str) -> Optional[str]:
-    """Detects and converts free-form 'Set to ...' or 'Straight move' rules into valid SQL expressions."""
+    """Detects and converts free-form 'Set to ...' or 'Straight move' rules into valid SQL expressions.
+       Enhanced (Patch 8): adds smart detection for conditional defaults like
+       'if blank then 0', 'if empty pass N', 'when null assign 1.0', etc.
+    """
     if not rule_text or not isinstance(rule_text, str):
         return None
 
@@ -213,10 +216,27 @@ def parse_set_rule(rule_text: str) -> Optional[str]:
         return "TO_DATE('\"\"\"${etl.effective.start.date}\"\"\"', 'yyyyMMddHHmmss')"
 
     # Conditional NULL patterns (simple heuristic)
-    # e.g., "Set to NULL if invalid/blank/zero/0001-01-01"
     if re.search(r"set\s+to\s+null\s+if", text):
         # we return a placeholder; build layer can expand with src_col
         return "CASE WHEN {source_column} IS NULL OR TRIM({source_column})='' THEN NULL ELSE {source_column} END"
+
+    # 🟢 NEW: Smart default detection for conditional rules
+    # Matches: "if blank then 0", "if empty pass 0", "when null assign 1", etc.
+    m_default = re.search(
+        r"(if|when)\s+(blank|empty|null|missing)[^a-z0-9]+(then|use|set|assign|pass)\s+(['\"]?[-\w\.]+['\"]?)",
+        text,
+        re.I,
+    )
+    if m_default:
+        val = m_default.group(4).strip("'\" ")
+        # numeric or decimal
+        if re.fullmatch(r"[-+]?\d+(\.\d+)?", val):
+            return f"COALESCE({{source_column}}, {val})"
+        # NULL explicitly
+        if val.lower() == "null":
+            return "COALESCE({source_column}, NULL)"
+        # otherwise treat as string
+        return f"COALESCE({{source_column}}, '{val}')"
 
     # Dates like 9999-12-31 (optionally with cast directions)
     mdate = re.search(r"(\d{4}-\d{2}-\d{2})", original)
@@ -243,7 +263,6 @@ def parse_set_rule(rule_text: str) -> Optional[str]:
             return val
         val_clean = val.strip().strip("'").strip('"')
         return f"'{val_clean}'"
-
 
     # 🟢 Handle "Straight move" patterns
     if re.search(r"straight\s*move", text, re.I):
