@@ -173,16 +173,16 @@ def _strip_trailing_notes(lit: str) -> str:
     s = re.sub(r"\s*\([^)]*\)\.?\s*$", "", lit or "").strip()
     return s
 
-def _needs_cast(expr: str) -> bool:
-    e = (expr or "").strip()
-    if e.upper() == "NULL":
-        return True
+#def _needs_cast(expr: str) -> bool:
+ #   e = (expr or "").strip()
+ #   if e.upper() == "NULL":
+   #     return True
     # literals or numbers should be cast to target datatype
-    if re.fullmatch(r"[-+]?\d+(\.\d+)?", e.strip("'")):
-        return True
-    if re.fullmatch(r"'[^']*'", e):
-        return True
-    return False
+  #  if re.fullmatch(r"[-+]?\d+(\.\d+)?", e.strip("'")):
+   #     return True
+ #   if re.fullmatch(r"'[^']*'", e):
+   #     return True
+ #   return False
 
 def build_final_select(df: pd.DataFrame) -> Tuple[str, List[Dict[str, str]]]:
     """
