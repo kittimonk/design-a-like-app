@@ -140,11 +140,17 @@ def _infer_datatype_from_value(value: str, explicit_type: Optional[str]) -> str:
         return "DATE"
     return "STRING"
 
-def _cast_to_datatype(expr: str, target_datatype: str) -> str:
-    """Return expr casted to the given type. Handles NULL specially and keeps function calls unquoted."""
+def _cast_to_datatype(expr: str, target_datatype: str, default_val: Optional[str] = None) -> str:
+    """Return expr casted to the given type. Handles NULL specially and keeps function calls unquoted.
+       Patch 7 extension: optional COALESCE(expr, default_val) for default-aware casting.
+    """
     if not target_datatype:
         return expr
     dt = target_datatype.strip().upper()
+
+    # 🟢 NEW: apply COALESCE default if provided
+    if default_val and default_val.strip() and default_val.strip().upper() != "NULL":
+        expr = f"COALESCE({expr}, {default_val})"
 
     # NULL casting
     if expr.strip().upper() == "NULL":
