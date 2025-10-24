@@ -216,7 +216,7 @@ def build_final_select(df: pd.DataFrame) -> Tuple[str, List[Dict[str, str]]]:
 
         # Build expression (preserving CASE and FROM)
         expr, trailing_comment = transformation_expression(
-            raw_trans, target_col=tgt, src_col=src_col, target_datatype=tgt_dtype
+            raw_trans, target_col=tgt, src_col=src_col, target_datatype=row.get("tgt_datatype", "")
         )
 
         # Expand placeholders from parse_set_rule results
