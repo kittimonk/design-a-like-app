@@ -250,8 +250,10 @@ def build_final_select(df: pd.DataFrame) -> Tuple[str, List[Dict[str, str]]]:
             expr = re.sub(r"(?i)\bend\b", r"\n  END", expr)
 
         # 🟢 Enforce datatype-aware CAST for all literals/NULLs (fix reintroduced)
-        if tgt_dtype:
-            expr = _cast_to_datatype(expr, tgt_dtype)
+        # 🟢 Enforce datatype-aware CAST for literals and NULLs
+        if tgt_dtype and _needs_cast(expr):
+             inferred = _infer_datatype_from_value(expr, tgt_dtype)
+             expr = _cast_to_datatype(expr, inferred)
 
         # Avoid duplicate aliasing
         if not re.search(r"(?i)\bas\s+\w+\b\s*$", expr.strip()):
