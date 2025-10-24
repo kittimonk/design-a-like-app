@@ -6,7 +6,7 @@ from typing import List, Dict, Any, Tuple
 
 from rule_utils import (
     squash, clean_free_text, parse_literal_set, transformation_expression,
-    normalize_join, business_rules_to_where, detect_lookup, parse_set_rule
+    normalize_join, business_rules_to_where, detect_lookup, parse_set_rule, _debug_log
 )
 
 # ---------- CSV loading & column mapping ----------
@@ -172,6 +172,23 @@ def build_final_select(df: pd.DataFrame) -> Tuple[str, List[Dict[str, str]]]:
         expr, trailing_comment = transformation_expression(
             raw_trans, target_col=tgt, src_col=src_col
         )
+
+        # 🟢 Expand placeholders (e.g. {source_column}) from parse_set_rule results
+        if "{source_column}" in expr:
+            expr = expr.replace("{source_column}", src_col or "NULL")
+
+        # 🩹 Fix 1: remove stray quotes wrapping CASE/SELECT expressions
+        if re.match(r"^['\"]\s*(CASE|SELECT)\b", expr, re.I):
+            old_expr = expr
+            expr = re.sub(r"^['\"]|['\"]$", "", expr.strip())
+            if DEBUG_TRANSFORMATIONS:
+                _debug_log(
+                    "TRANSFORMATION (dequote fix)",
+                    f"Target: {tgt}\nBefore: {old_expr}\nAfter: {expr}"
+                )
+
+        # 🩹 Fix 2: remove trailing semicolon (if any)
+        expr = re.sub(r";+$", "", expr).strip()
 
         # Build SQL select line
         select_line = f"    {expr} AS {tgt}"
