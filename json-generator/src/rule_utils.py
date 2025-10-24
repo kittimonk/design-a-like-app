@@ -235,7 +235,9 @@ def parse_set_rule(rule_text: str) -> Optional[str]:
             return val
         if re.fullmatch(r"'[^']*'", val):
             return val
-        return f"'{val.strip(\"'\\\"\")}'"
+        val_clean = val.strip().strip("'").strip('"')
+        return f"'{val_clean}'"
+
 
     # 🟢 Handle "Straight move" patterns
     if re.search(r"straight\s*move", text, re.I):
@@ -347,3 +349,16 @@ def normalize_join(join_text: str) -> str:
         _debug_log("JOIN NORMALIZATION", s_final)
 
     return s_final
+
+# ---------- Lookup detection (for job JSON) ----------
+
+def detect_lookup(text_blocks: List[str]) -> bool:
+    """
+    Lightweight detector: return True if the combined text mentions lookup/reference tables.
+    Used by build_sql_job to decide whether to include lookup_cd module.
+    """
+    if not text_blocks:
+        return False
+    joined = " ".join(str(t).lower() for t in text_blocks)
+    patterns = ["lookup", "_lkp", "_xref", "_map", "_ref", "code_mapping"]
+    return any(p in joined for p in patterns)

@@ -225,9 +225,11 @@ def build_final_select(df: pd.DataFrame) -> Tuple[str, List[Dict[str, str]]]:
 
         # Cleanup: strip stray developer notes from literals
         if re.fullmatch(r"'[^']*'", expr.strip()):
-            expr = f"'{_strip_trailing_notes(expr.strip().strip(\"'\"))}'"
+            expr_clean = expr.strip().strip("'")
+            expr = f"'{_strip_trailing_notes(expr_clean)}'"
         elif re.fullmatch(r"[-+]?\d+(\.\d+)?", expr.strip().strip("'")):
             expr = _strip_trailing_notes(expr.strip().strip("'"))
+
 
         # Dequote whole CASE/SELECT expressions
         if re.match(r"^['\"]\s*(CASE|SELECT)\b", expr, re.I):
