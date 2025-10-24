@@ -1,3 +1,4 @@
+# build_sql_job.py (v6) — outputs full SQL, full JSON, full audit markdown
 import os, re, json
 import pandas as pd
 from collections import Counter
@@ -5,10 +6,14 @@ from typing import List, Dict, Any, Tuple
 
 from rule_utils import (
     squash, clean_free_text, parse_literal_set, transformation_expression,
-    normalize_join, business_rules_to_where, detect_lookup, parse_set_rule, _debug_log
+    normalize_join, business_rules_to_where, detect_lookup, parse_set_rule,
+    _infer_datatype_from_value, _cast_to_datatype, _debug_log
 )
 
-DEBUG_TRANSFORMATIONS = True  # ✅ enable this if you want dequote debug messages
+# Toggle these if you want more verbose debug logs written to file
+DEBUG_TRANSFORMATIONS = False
+DEBUG_JOINS = False
+DEBUG_OUTPUT_DIR = "debug_outputs"
 
 # ---------- CSV loading & column mapping ----------
 
@@ -27,6 +32,7 @@ def load_mapping(csv_path: str) -> pd.DataFrame:
     df = pd.read_csv(csv_path, engine="python")
     df = _rename_dupe_headers(df)
 
+    # Map your known headers to canonical names
     colmap = {
         "Table/File Name * (auto populate)": "src_table",
         "Column Name * (auto populate)": "src_column",
@@ -43,6 +49,7 @@ def load_mapping(csv_path: str) -> pd.DataFrame:
         if k in df.columns:
             df[v] = df[k]
 
+    # keep blanks as empty strings (not NaN)
     return df.fillna("")
 
 # ---------- Inference ----------
@@ -58,10 +65,22 @@ def choose_primary(df: pd.DataFrame) -> str:
     counts = Counter([str(r) for r in df.get("src_table", pd.Series()) if r])
     return counts.most_common(1)[0][0] if counts else "source_table mas"
 
+# ---------- Debug writer ----------
+
+def _write_debug(name: str, content: str):
+    if not (DEBUG_JOINS or DEBUG_TRANSFORMATIONS):
+        return
+    os.makedirs(DEBUG_OUTPUT_DIR, exist_ok=True)
+    path = os.path.join(DEBUG_OUTPUT_DIR, name)
+    with open(path, "a", encoding="utf-8") as f:
+        f.write(content.strip() + "\n\n")
+
 # ---------- SQL builders ----------
 
 def build_cte_sources(sources: List[str]) -> Tuple[List[str], List[str]]:
-    ctes, aliases_out, seen_aliases = [], [], set()
+    ctes = []
+    seen_aliases = set()
+    aliases_out = []
     for s in sources:
         parts = s.split()
         if len(parts) >= 2:
@@ -70,43 +89,65 @@ def build_cte_sources(sources: List[str]) -> Tuple[List[str], List[str]]:
             table = s
             alias = s.split("_")[0] if "_" in s else "src"
         base = re.sub(r"[^A-Za-z0-9_]", "", alias) or "src"
-        alias_u, i = base, 1
+        alias_u = base
+        i = 1
         while alias_u in seen_aliases:
-            alias_u = f"{base}{i}"; i += 1
+            alias_u = f"{base}{i}"
+            i += 1
         seen_aliases.add(alias_u)
         aliases_out.append(alias_u)
         ctes.append(f"{alias_u} AS (SELECT * FROM {table} {alias_u})")
     return ctes, aliases_out
 
-def build_step1_cte(df: pd.DataFrame, primary_src: str) -> str:
-    """Builds base CTE with deduped JOINs + business rules"""
-    base_alias = (
-        primary_src.split()[-1]
-        if " " in primary_src else (primary_src.split("_")[0] if "_" in primary_src else "mas")
-    )
+def _sanitize_alias_leaks(join_sql: str, base_alias: str) -> str:
+    """
+    If the join condition references 'mas.' but the base alias is different,
+    rewrite 'mas.' -> '<base_alias>.' to avoid undefined alias.
+    """
+    if not join_sql:
+        return join_sql
+    # only rewrite standalone 'mas.' references
+    out = re.sub(r"(?<![A-Za-z0-9_])mas\.", f"{base_alias}.", join_sql)
+    return out
 
-    # JOIN normalization
+def build_step1_cte(df: pd.DataFrame, primary_src: str) -> str:
+    """
+    Builds base CTE with deduped JOINs + business rules.
+    Also fixes alias leakage (mas -> base_alias) when the base alias differs.
+    """
+    base_alias = (primary_src.split()[-1] if " " in primary_src
+                  else (primary_src.split("_")[0] if "_" in primary_src else "mas"))
+
+    # ----- JOIN normalization -----
     normalized_joins, seen_joins = [], set()
     for txt in df.get("join_clause", pd.Series()).tolist():
         j = normalize_join(txt)
         if not j:
             continue
-        if re.search(fr"\b{base_alias}\b", j, re.I) and re.search(fr"\b{primary_src}\b", j, re.I):
-            continue
+        # fix alias leaks before dedupe
+        j = _sanitize_alias_leaks(j, base_alias)
         key = j.lower().strip()
-        if key not in seen_joins:
+        if key and key not in seen_joins:
             normalized_joins.append(j)
             seen_joins.add(key)
+
     joins = [f"  {j}" for j in normalized_joins]
     join_clause = "\n".join(joins)
 
-    # Business rules
+    if DEBUG_JOINS and joins:
+        _write_debug("joins_debug.log", "==== Deduped/Normalized JOINS ====\n" + "\n".join(joins))
+
+    # ----- Business rules normalization -----
     br_blocks_raw = [business_rules_to_where(txt) for txt in df.get("business_rule", pd.Series()).tolist()]
-    seen_rules, br_blocks = set(), []
+
+    # Deduplicate identical blocks (case-insensitive)
+    seen_rules = set()
+    br_blocks = []
     for blk in br_blocks_raw:
         key = blk.lower().strip()
         if key and key not in seen_rules:
-            br_blocks.append(blk); seen_rules.add(key)
+            br_blocks.append(blk)
+            seen_rules.add(key)
 
     where_lines = [f"-- Business Rule Block #{i+1}\n  {blk}" for i, blk in enumerate(br_blocks) if blk]
     where_clause = "\nWHERE\n  " + "\n  AND ".join(where_lines) if where_lines else ""
@@ -119,16 +160,52 @@ def build_step1_cte(df: pd.DataFrame, primary_src: str) -> str:
         f"{where_clause}\n)"
     )
 
+def _sanitize_target_alias(tgt: str) -> str:
+    """
+    Replace characters that commonly break SQL identifiers (dot/space/hyphen).
+    (We keep it minimal to avoid changing business names – underscores only when needed.)
+    """
+    safe = re.sub(r"[^\w]", "_", tgt)
+    return safe
+
+def _strip_trailing_notes(lit: str) -> str:
+    # remove trailing parenthetical notes like (Asset). or (No Source).
+    s = re.sub(r"\s*\([^)]*\)\.?\s*$", "", lit or "").strip()
+    return s
+
+def _needs_cast(expr: str) -> bool:
+    e = (expr or "").strip()
+    if e.upper() == "NULL":
+        return True
+    # literals or numbers should be cast to target datatype
+    if re.fullmatch(r"[-+]?\d+(\.\d+)?", e.strip("'")):
+        return True
+    if re.fullmatch(r"'[^']*'", e):
+        return True
+    return False
+
 def build_final_select(df: pd.DataFrame) -> Tuple[str, List[Dict[str, str]]]:
-    """Generates SELECT and audit; merges dup targets."""
-    lines, audit_rows = [], []
+    """
+    Return SELECT body string plus an audit list of {"row", "target", "raw", "sql", "note"}.
+    Handles duplicate target columns by merging transformation rules.
+    Adds datatype-aware CAST for simple literals / NULLs.
+    """
+    lines = []
+    audit_rows = []
+
+    # Group by target column (case-insensitive)
     grouped = df.groupby(df["tgt_column"].str.lower(), dropna=False)
 
     for tgt_lower, group in grouped:
         tgt = group["tgt_column"].iloc[0]
-        unique_rules = list({r.strip() for r in group.get("transformation_rule", []) if str(r).strip()})
-        unique_sources = list({s.strip() for s in group.get("src_column", []) if str(s).strip()})
+        tgt_dtype = (group["tgt_datatype"].iloc[0] if "tgt_datatype" in group else "").strip()
+
+        # Combine multiple rows for same target
+        unique_rules = list({(r or "").strip() for r in group.get("transformation_rule", []) if str(r).strip()})
+        unique_sources = list({(s or "").strip() for s in group.get("src_column", []) if str(s).strip()})
         merged_note = ""
+
+        # Pick first transformation logic
         if len(unique_rules) > 1:
             merged_note = f"-- NOTE: merged {len(unique_rules)} variations for target column '{tgt}'"
         elif len(group) > 1:
@@ -136,19 +213,30 @@ def build_final_select(df: pd.DataFrame) -> Tuple[str, List[Dict[str, str]]]:
 
         raw_trans = unique_rules[0] if unique_rules else ""
         src_col = unique_sources[0] if unique_sources else ""
-        expr, trailing_comment = transformation_expression(raw_trans, tgt, src_col)
 
-        # expand placeholders
+        # Build expression (preserving CASE and FROM)
+        expr, trailing_comment = transformation_expression(
+            raw_trans, target_col=tgt, src_col=src_col, target_datatype=tgt_dtype
+        )
+
+        # Expand placeholders from parse_set_rule results
         if "{source_column}" in expr:
             expr = expr.replace("{source_column}", src_col or "NULL")
 
-        # cleanup CASE quotes
+        # Cleanup: strip stray developer notes from literals
+        if re.fullmatch(r"'[^']*'", expr.strip()):
+            expr = f"'{_strip_trailing_notes(expr.strip().strip(\"'\"))}'"
+        elif re.fullmatch(r"[-+]?\d+(\.\d+)?", expr.strip().strip("'")):
+            expr = _strip_trailing_notes(expr.strip().strip("'"))
+
+        # Dequote whole CASE/SELECT expressions
         if re.match(r"^['\"]\s*(CASE|SELECT)\b", expr, re.I):
             expr = expr.strip().strip("'\"")
 
+        # Remove trailing semicolons
         expr = re.sub(r";+$", "", expr).strip()
 
-        # pretty CASE
+        # Optional: improve CASE readability (indent WHEN/END)
         if expr.strip().upper().startswith("CASE"):
             expr = re.sub(r"(?i)\b(case)\b", r"\1\n  ", expr)
             expr = re.sub(r"(?i)\b(when)\b", r"\n    \1", expr)
@@ -156,11 +244,18 @@ def build_final_select(df: pd.DataFrame) -> Tuple[str, List[Dict[str, str]]]:
             expr = re.sub(r"(?i)\b(else)\b", r"\n    \1", expr)
             expr = re.sub(r"(?i)\bend\b", r"\n  END", expr)
 
-        # avoid duplicate alias
+        # Datatype-aware CAST for literals/NULLs
+        if _needs_cast(expr) and tgt_dtype:
+            inferred = _infer_datatype_from_value(expr, tgt_dtype)
+            expr = _cast_to_datatype(expr, inferred)
+
+        # Avoid duplicate aliasing (if expr already ends with AS something)
         if not re.search(r"(?i)\bas\s+\w+\b\s*$", expr.strip()):
-            select_line = f"    {expr} AS {tgt}"
+            select_line = f"    {expr} AS {_sanitize_target_alias(tgt)}"
         else:
             select_line = f"    {expr}"
+
+        # Attach notes/comments
         if merged_note:
             select_line = f"    {merged_note}\n{select_line}"
         if trailing_comment:
@@ -168,22 +263,22 @@ def build_final_select(df: pd.DataFrame) -> Tuple[str, List[Dict[str, str]]]:
 
         lines.append(select_line)
 
+        # Audit tracking (store the un-prettified expr for traceability)
         audit_rows.append({
             "row": f"{group.index.min() + 1}",
             "target": tgt,
-            "raw": " | ".join(unique_rules) or "",
+            "raw": raw_trans.replace("\n", " ").strip(),
             "sql": expr.strip(),
             "note": merged_note or (trailing_comment or "")
         })
 
-    sql = "SELECT\n" + ",\n".join(lines) + "\nFROM step1"
-    return sql, audit_rows
+    return "SELECT\n" + ",\n".join(lines) + "\nFROM step1", audit_rows
 
 def build_sql_cte_pipeline(df: pd.DataFrame, target_table: str) -> Tuple[str, List[Dict[str, str]]]:
     sources = infer_sources(df)
     cte_sources, _aliases = build_cte_sources(sources)
     primary = choose_primary(df)
-    step1 = build_step1_cte(df, primary)
+    step1 = build_step1_cte(df, primary_src=primary)
     final_select, audit_rows = build_final_select(df)
     sql_text = "WITH\n" + ",\n".join(cte_sources + [step1]) + "\n" + final_select + ";\n"
     return sql_text, audit_rows
@@ -193,6 +288,7 @@ def build_sql_cte_pipeline(df: pd.DataFrame, target_table: str) -> Tuple[str, Li
 def build_job_json(source_malcode: str, target_table: str, sql_path: str, df: pd.DataFrame) -> Dict[str, Any]:
     sources = infer_sources(df)
     sourcelist = [s.split()[0] for s in sources] if sources else []
+
     modules = {}
 
     dsp = {
@@ -275,16 +371,19 @@ def generate(csv_path: str, outdir: str, source_malcode: str = "ND") -> Dict[str
     job_dir = os.path.join(outdir, f"{target.lower()}_job")
     os.makedirs(job_dir, exist_ok=True)
 
+    # Build SQL & audit
     sql_text, audit_rows = build_sql_cte_pipeline(df, target)
     sql_path = os.path.join(job_dir, f"{target.lower()}_pipeline.sql")
     with open(sql_path, "w", encoding="utf-8") as f:
         f.write(sql_text)
 
+    # Build JSON
     job_json = build_job_json(source_malcode, target, sql_path, df)
     json_path = os.path.join(job_dir, f"{target.lower()}_job.json")
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(job_json, f, indent=2)
 
+    # Build audit markdown
     md_path = os.path.join(job_dir, "transformation_rules_audit.md")
     write_audit_md(audit_rows, md_path)
 

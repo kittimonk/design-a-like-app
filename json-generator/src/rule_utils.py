@@ -1,37 +1,17 @@
-# rule_utils.py (v5) — preserves multi-line CASE logic; builds auditable WHERE; normalizes joins; smart "Set" parsing
+# rule_utils.py (v6) — preserves multi-line CASE logic; builds auditable WHERE; normalizes joins
 import re
 from typing import List, Tuple, Optional
-import datetime
-from pathlib import Path
 
-# -------------------------------------------------------------------
-# GLOBAL DEBUG SETTINGS
-# -------------------------------------------------------------------
-DEBUG_JOINS = True
-DEBUG_BUSINESS_RULES = True
-DEBUG_TRANSFORMATIONS = True
+# ---------- Debug hooks (kept light; file-writer lives in build script) ----------
+DEBUG_JOINS = False
+DEBUG_TRANSFORMATIONS = False
 
-# Path for debug log output
-DEBUG_LOG_PATH = Path("debug_outputs/sql_flow_debug.log")
+def _debug_log(title: str, block: str):
+    # build_sql_job.py writes to file; here we keep it minimal for import safety
+    if DEBUG_JOINS or DEBUG_TRANSFORMATIONS:
+        print(f"[DEBUG] {title}\n{block}\n")
 
-# Internal line counter for log numbering
-_debug_line_counter = 0
-
-def _debug_log(section: str, content: str):
-    """
-    Append a structured, line-numbered block to the debug log file.
-    Each block is separated by blank lines for readability.
-    """
-    global _debug_line_counter
-    _debug_line_counter += 1
-    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    DEBUG_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with open(DEBUG_LOG_PATH, "a", encoding="utf-8") as f:
-        f.write(f"\n[{_debug_line_counter}] 🧩 {section} — {timestamp}\n")
-        f.write("-" * 80 + "\n")
-        for line in content.strip().splitlines():
-            f.write(line + "\n")
-        f.write("\n")  # blank line for readability
+# ---------- Small utils ----------
 
 def squash(s: str) -> str:
     return re.sub(r"\s+", " ", (s or "")).strip()
@@ -46,17 +26,13 @@ def clean_free_text(s: str) -> str:
 # ---------- Business Rules → WHERE ----------
 
 def _extract_predicates_from_lines(lines: List[str]) -> Tuple[List[str], List[str]]:
-    """
-    Extracts predicate expressions (WHERE filters) and notes from business rule lines.
-    This function detects common phrases like 'duplicate', 'all spaces', 'not active', etc.
-    """
     preds, notes = [], []
     for ln in lines:
         l = (ln or "").strip()
         if not l:
             continue
 
-        # “duplicate” hint → ROW_NUMBER TODO note
+        # “duplicate” hint → ROW_NUMBER TODO note (kept as comment)
         if re.search(r"(?i)\bduplicate\b.*\bossbr_2_1\.SRSECCODE\b", l):
             notes.append("-- TODO: Duplicates: enforce ROW_NUMBER() OVER (PARTITION BY mas.SRSECCODE ORDER BY <choose>) = 1")
 
@@ -82,60 +58,27 @@ def _extract_predicates_from_lines(lines: List[str]) -> Tuple[List[str], List[st
         if re.search(r"(?i)\bexclude the record\b", l):
             notes.append(f"-- NOTE: Exclusion rule -> {l}")
 
-    # Debug mode output
-    if DEBUG_BUSINESS_RULES:
-        _debug_log(
-            "BUSINESS RULE EXTRACTION",
-            "\n".join([
-                "Predicates Detected:" if preds else "No predicates.",
-                *[f"  - {p}" for p in preds],
-                "",
-                "Notes Detected:" if notes else "No notes.",
-                *[f"  - {n}" for n in notes]
-            ])
-        )
-
     return preds, notes
 
-
 def business_rules_to_where(biz_text: str) -> str:
-    """
-    Convert enumerated/paragraph business rules into a WHERE block with audit comments.
-    Each rule produces:
-    - Inline SQL predicates (TRIM, equality, etc.)
-    - Notes for exceptions, duplicates, or TODOs
-
-    Debug:
-    ------
-    If DEBUG_BUSINESS_RULES=True, prints both extracted predicates and notes for each rule.
-    """
+    """Convert enumerated/paragraph business rules into a WHERE block with audit comments."""
     if not biz_text:
         return ""
-
     text = clean_free_text(biz_text)
-
     # split by bullets like "1)" and by newlines; keep content
     items = re.split(r"(?:^\s*\d+\)\s*|\n)+", text)
     items = [i for i in items if i and i.strip()]
-
     preds, notes = _extract_predicates_from_lines(items)
-
     body = []
     body.extend(notes)
     if preds:
         body.append(" AND ".join(preds))
-
-    block = "\n  ".join(body).strip()
-
-    if DEBUG_BUSINESS_RULES:
-        _debug_log("BUSINESS RULE WHERE BLOCK", block or "(empty)")
-
-    return block
+    return "\n  ".join(body).strip()
 
 # ---------- Transformation parsing (CASE preservation) ----------
 
 def parse_literal_set(trans: str) -> Optional[str]:
-    """Detect 'Set to <X>' patterns → return a SQL literal (legacy simple handler)."""
+    """Detect 'Set to <X>' patterns → return a SQL literal."""
     if not trans:
         return None
     m = re.search(r"(?i)\bset\s+to\s+(.+?)(?:\s*$|\.)", trans.strip())
@@ -166,6 +109,9 @@ def extract_case_core(trans_text: str) -> Tuple[str, str]:
     if not _CASE_START.match(txt):
         return (txt, "")
 
+    # Find the first FROM after the CASE block begins.
+    # We keep everything up to (but not including) FROM in "core",
+    # and emit the remainder as a commented context.
     parts = _FROM_SPLIT.split(txt, maxsplit=1)
     if len(parts) == 2:
         core = parts[0].rstrip()
@@ -173,7 +119,70 @@ def extract_case_core(trans_text: str) -> Tuple[str, str]:
         return (core, f"-- Source context preserved: {squash(trailing)}")
     return (txt, "")
 
-# ---------- Smart Parser for 'Set' Rules (enhanced) ----------
+# ---------- Smart datatype helpers (for casting) ----------
+
+def _infer_datatype_from_value(value: str, explicit_type: Optional[str]) -> str:
+    """Prefer explicit CSV type; else infer: numeric -> BIGINT, decimalx -> DECIMAL, quoted -> STRING."""
+    if explicit_type and explicit_type.strip():
+        return explicit_type.strip()
+    if value is None:
+        return "STRING"
+    v = str(value).strip()
+
+    # numeric (integer-like)
+    if re.fullmatch(r"[-+]?\d+", v):
+        return "BIGINT"
+    # decimal
+    if re.fullmatch(r"[-+]?\d+\.\d+", v):
+        return "DECIMAL(17,2)"
+    # date-ish keywords
+    if "to_date(" in v.lower() or re.search(r"\d{4}-\d{2}-\d{2}", v):
+        return "DATE"
+    return "STRING"
+
+def _cast_to_datatype(expr: str, target_datatype: str) -> str:
+    """Return expr casted to the given type. Handles NULL specially and keeps function calls unquoted."""
+    if not target_datatype:
+        return expr
+    dt = target_datatype.strip().upper()
+
+    # NULL casting
+    if expr.strip().upper() == "NULL":
+        if "DECIMAL" in dt or "NUMERIC" in dt:
+            return f"CAST(NULL AS {dt})"
+        if any(t in dt for t in ["BIGINT", "INT", "INTEGER", "SMALLINT"]):
+            return f"CAST(NULL AS {dt})"
+        if any(t in dt for t in ["DATE", "TIMESTAMP"]):
+            return f"CAST(NULL AS {dt})"
+        return f"CAST(NULL AS {dt})"
+
+    # Already function-like (TO_DATE, CURRENT_TIMESTAMP, CASE ...)
+    if re.match(r"(?i)^\s*(TO_DATE|DATE|CURRENT_TIMESTAMP|CASE|COALESCE|CAST)\b", expr.strip(), re.I):
+        return f"CAST({expr} AS {dt})" if ("DECIMAL" in dt or "NUMERIC" in dt or "BIGINT" in dt or "INT" in dt) else expr
+
+    # simple numeric literals
+    if re.fullmatch(r"[-+]?\d+(\.\d+)?", expr.strip().strip("'")):
+        lit = expr.strip().strip("'")
+        if "DECIMAL" in dt or "NUMERIC" in dt:
+            return f"CAST({lit} AS {dt})"
+        if any(t in dt for t in ["BIGINT", "INT", "INTEGER", "SMALLINT"]):
+            return f"CAST({lit} AS {dt})"
+        # fall back to string for other types
+        return f"CAST('{lit}' AS {dt})"
+
+    # quoted text literal
+    if re.fullmatch(r"'[^']*'", expr.strip()):
+        if "DECIMAL" in dt or "NUMERIC" in dt or "BIGINT" in dt or "INT" in dt:
+            # try to parse number inside quotes
+            inner = expr.strip().strip("'")
+            if re.fullmatch(r"[-+]?\d+(\.\d+)?", inner):
+                return f"CAST({inner} AS {dt})"
+        return f"CAST({expr} AS {dt})"
+
+    # default
+    return f"CAST({expr} AS {dt})" if ("DECIMAL" in dt or "NUMERIC" in dt or "BIGINT" in dt or "INT" in dt) else expr
+
+# ---------- Main transformation expression ----------
 
 def parse_set_rule(rule_text: str) -> Optional[str]:
     """Detects and converts free-form 'Set to ...' or 'Straight move' rules into valid SQL expressions."""
@@ -197,6 +206,12 @@ def parse_set_rule(rule_text: str) -> Optional[str]:
         # use triple double quotes around the variable
         return "TO_DATE('\"\"\"${etl.effective.start.date}\"\"\"', 'yyyyMMddHHmmss')"
 
+    # Conditional NULL patterns (simple heuristic)
+    # e.g., "Set to NULL if invalid/blank/zero/0001-01-01"
+    if re.search(r"set\s+to\s+null\s+if", text):
+        # we return a placeholder; build layer can expand with src_col
+        return "CASE WHEN {source_column} IS NULL OR TRIM({source_column})='' THEN NULL ELSE {source_column} END"
+
     # Dates like 9999-12-31 (optionally with cast directions)
     mdate = re.search(r"(\d{4}-\d{2}-\d{2})", original)
     if mdate:
@@ -205,20 +220,28 @@ def parse_set_rule(rule_text: str) -> Optional[str]:
             return f"CAST('{d}' AS DATE)"
         return f"'{d}'"
 
-    # “Set X to Y” or “Set to Y”
-    m = re.search(r"(?i)set(?:\s+\w+)?\s+to\s+(['\"]?)([A-Za-z0-9_]+)\1", original)
+    # “Set X to Y” or “Set to Y” (strip developer notes in parentheses)
+    m = re.search(r"(?i)set(?:\s+\w+)?\s+to\s+(.+)$", original)
     if m:
-        val = m.group(2)
-        return f"'{val}'"
+        val = m.group(1).strip().rstrip(".")
+        # remove trailing parenthetical commentary
+        val = re.sub(r"\s*\(.*?\)\s*$", "", val).strip()
+        # +00331 → 331 (strip leading plus zeros if numeric)
+        if re.fullmatch(r"[+]?0*\d+", val):
+            num = re.sub(r"^[+]?0*", "", val) or "0"
+            return num
+        # plain quoted or bare tokens
+        if re.fullmatch(r"[-+]?\d+(\.\d+)?", val):
+            return val
+        if re.fullmatch(r"'[^']*'", val):
+            return val
+        return f"'{val.strip(\"'\\\"\")}'"
 
     # 🟢 Handle "Straight move" patterns
     if re.search(r"straight\s*move", text, re.I):
-        # If it mentions a date field or date formatting
         if re.search(r"yyyy[-/]mm[-/]dd", text, re.I) or re.search(r"date\s*field", text, re.I):
-            # Format source as YYYY-MM-DD
             return "TO_DATE({source_column}, 'YYYY-MM-DD')"
         else:
-            # Straight passthrough
             return "{source_column}"
 
     # fallback: strip comment markers and boilerplate
@@ -234,7 +257,7 @@ def parse_set_rule(rule_text: str) -> Optional[str]:
         return "NULL"
     return f"'{cleaned}'" if cleaned else None
 
-def transformation_expression(trans: str, target_col: str, src_col: str) -> Tuple[str, Optional[str]]:
+def transformation_expression(trans: str, target_col: str, src_col: str, target_datatype: Optional[str] = None) -> Tuple[str, Optional[str]]:
     """
     Build the actual SQL expression for the SELECT list.
     Returns:
@@ -243,36 +266,24 @@ def transformation_expression(trans: str, target_col: str, src_col: str) -> Tupl
     trans = clean_free_text(trans)
     if not trans:
         expr = src_col or "NULL"
-        if DEBUG_TRANSFORMATIONS:
-            _debug_log("TRANSFORMATION (default passthrough)", f"Target: {target_col}\nExpr: {expr}")
         return (expr, None)
 
-    # 🔹 Step 1: Handle custom "Set to ..." rules (smart parser)
-    # 🔹 Step 1A: Skip smart parser for CASE blocks (they already contain SQL)
-    if not trans.strip().lower().startswith("case"):
-        rule_expr = parse_set_rule(trans)
-        if rule_expr:
-            if DEBUG_TRANSFORMATIONS:
-                _debug_log("TRANSFORMATION (smart rule)", f"Target: {target_col}\nRaw: {trans}\nParsed: {rule_expr}")
-            return (rule_expr, None)
-        
-    # 🔹 Step 2: Handle generic literal "Set to ..." cases
+    # 🔹 Skip smart parser for CASE blocks (they already contain SQL)
+    if trans.strip().lower().startswith("case"):
+        core, trailing_comment = extract_case_core(trans)
+        return (core, trailing_comment or None)
+
+    # 🔹 Smart rule / literal handlers
+    rule_expr = parse_set_rule(trans)
+    if rule_expr:
+        return (rule_expr, None)
+
     lit = parse_literal_set(trans)
     if lit is not None:
-        if DEBUG_TRANSFORMATIONS:
-            _debug_log("TRANSFORMATION (literal rule)", f"Target: {target_col}\nRaw: {trans}\nParsed: {lit}")
         return (lit, None)
 
-    # 🔹 Step 3: Handle CASE blocks with possible FROM clauses
-    core, trailing_comment = extract_case_core(trans)
-
-    if DEBUG_TRANSFORMATIONS:
-        _debug_log(
-            "TRANSFORMATION (complex rule)",
-            f"Target: {target_col}\nSource: {src_col}\nRaw:\n{trans}\n\nParsed Core:\n{core}\nTrailing:\n{trailing_comment or '(none)'}"
-        )
-
-    return (core, trailing_comment or None)
+    # default: return cleaned text (may be a bare column or function)
+    return (trans.strip(), None)
 
 # ---------- Joins ----------
 
@@ -307,50 +318,32 @@ def normalize_join(join_text: str) -> str:
     s = re.sub(r"(?i)\bjoin\b", "JOIN", s)
     s = re.sub(r"[;\n]+", " ", s)
 
-    # -------------------------------------------------------------------
     # 🩹 Fix: Remove concatenated or duplicate JOIN fragments (e.g. two JOINs stuck together)
-    # -------------------------------------------------------------------
     s = re.sub(r"(LEFT\s+JOIN\s+[A-Za-z0-9_]+\s+[A-Za-z0-9_]+\s+)+", " ", s, flags=re.I)
 
-    # -------------------------------------------------------------------
     # 1️⃣  Default JOIN type enforcement — use LEFT JOIN unless specified
-    # -------------------------------------------------------------------
     if not re.search(r"(?i)\b(left|right|full)\s+join\b", s):
         s = re.sub(r"(?i)\bjoin\b", "LEFT JOIN", s)
 
-    # -------------------------------------------------------------------
     # 2️⃣  Auto-detect lookup/reference tables and force LEFT JOIN
-    # -------------------------------------------------------------------
-    # This ensures all lookup-style joins are non-restrictive.
     lookup_pattern = r"(?i)\b(_ref|_lkp|_xref|_map|_dim)\b"
     if re.search(lookup_pattern, s):
-        # Force LEFT JOIN regardless of user input
         s = re.sub(r"(?i)\b(inner|right|full)\s+join\b", "LEFT JOIN", s)
 
-    # -------------------------------------------------------------------
     # 3️⃣  Fix malformed fragments like "LEFT JOIN ossbr_2_1 mas GLSXREF ref ON ..."
     #      → retain only last two tokens before ON (GLSXREF ref)
-    # -------------------------------------------------------------------
     m = re.search(r"LEFT JOIN\s+([A-Za-z0-9_]+(?:\s+[A-Za-z0-9_]+)*)\s+ON\s+(.*)", s, re.I)
     if m:
         table_block = m.group(1)
         cond = m.group(2)
         parts = table_block.split()
-        # Keep only last two tokens: table + alias
-        if len(parts) > 2:
+        if len(parts) > 2:  # keep only last two tokens: table + alias
             table_block = " ".join(parts[-2:])
         s = f"LEFT JOIN {table_block} ON {cond}"
 
-    # Final cleanup and spacing normalization
     s_final = squash(s)
 
     if DEBUG_JOINS:
         _debug_log("JOIN NORMALIZATION", s_final)
 
     return s_final
-
-# ---------- Lookup detector ----------
-
-def detect_lookup(texts: List[str]) -> bool:
-    blob = " ".join([t for t in texts if t])
-    return bool(re.search(r"(?i)\blookup\b|\bref(erence)?\b|standard[_\s-]*code", blob))
