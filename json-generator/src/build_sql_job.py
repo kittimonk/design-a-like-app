@@ -84,32 +84,61 @@ def build_cte_sources(sources: List[str]) -> Tuple[List[str], List[str]]:
     return ctes, aliases_out
 
 def build_step1_cte(df: pd.DataFrame, primary_src: str) -> str:
-    base_alias = (primary_src.split()[-1] if " " in primary_src
-                  else (primary_src.split("_")[0] if "_" in primary_src else "mas"))
+    """
+    Build the base CTE with clean deduplicated JOINs and WHERE clauses.
+    Ensures LEFT JOIN safety and removes repeated or identical business rules.
+    """
+    base_alias = (
+        primary_src.split()[-1]
+        if " " in primary_src
+        else (primary_src.split("_")[0] if "_" in primary_src else "mas")
+    )
 
-    joins = []
-    for txt in df.get("join_clause", pd.Series()).tolist():
+    # ----- JOIN normalization -----
+    join_texts = df.get("join_clause", pd.Series()).tolist()
+    normalized_joins = []
+    seen_joins = set()
+    for txt in join_texts:
         j = normalize_join(txt)
-        if j and j not in joins:
-            joins.append(j)
+        if not j:
+            continue
+        # Remove accidental self-joins and duplicate entries (case-insensitive)
+        if re.search(fr"\b{base_alias}\b", j, re.I) and re.search(fr"\b{primary_src}\b", j, re.I):
+            continue
+        key = j.lower().strip()
+        if key not in seen_joins:
+            normalized_joins.append(j)
+            seen_joins.add(key)
 
+    joins = [f"  {j}" for j in normalized_joins]
+    join_clause = "\n".join(joins)
+
+    # ----- Business rules normalization -----
+    br_blocks_raw = [business_rules_to_where(txt) for txt in df.get("business_rule", pd.Series()).tolist()]
+    # Deduplicate business rules based on their cleaned body
+    seen_rules = set()
     br_blocks = []
-    for txt in df.get("business_rule", pd.Series()).tolist():
-        w = business_rules_to_where(txt)
-        if w:
-            br_blocks.append(w)
+    for blk in br_blocks_raw:
+        key = blk.lower().strip()
+        if key and key not in seen_rules:
+            br_blocks.append(blk)
+            seen_rules.add(key)
 
     where_lines = []
     for idx, blk in enumerate(br_blocks, 1):
         where_lines.append(f"-- Business Rule Block #{idx}\n  {blk}")
 
-    join_clause = (" " + " ".join(joins)) if joins else ""
-    where_clause = ("\nWHERE\n  " + "\n  AND ".join([l for l in where_lines if l])) if where_lines else ""
+    where_clause = (
+        "\nWHERE\n  " + "\n  AND ".join([l for l in where_lines if l])
+        if where_lines
+        else ""
+    )
 
     return (
         "step1 AS (\n"
         f"  SELECT {base_alias}.*\n"
-        f"  FROM {primary_src} {base_alias}{(' ' + join_clause) if join_clause else ''}\n"
+        f"  FROM {primary_src} {base_alias}\n"
+        f"{join_clause}\n"
         f"{where_clause}\n)"
     )
 

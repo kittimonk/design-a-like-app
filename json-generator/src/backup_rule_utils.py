@@ -1,6 +1,13 @@
-# rule_utils.py (v4) — preserves multi-line CASE logic; builds auditable WHERE; normalizes joins
+# rule_utils.py (v5) — preserves multi-line CASE logic; builds auditable WHERE; normalizes joins; smart "Set" parsing
 import re
 from typing import List, Tuple, Optional
+
+# -------------------------------------------------------------------
+# GLOBAL DEBUG SWITCHES
+# -------------------------------------------------------------------
+DEBUG_JOINS = False           # Print normalized JOINs during processing
+DEBUG_BUSINESS_RULES = False  # Print extracted predicates & notes for business rules
+
 
 def squash(s: str) -> str:
     return re.sub(r"\s+", " ", (s or "")).strip()
@@ -67,7 +74,7 @@ def business_rules_to_where(biz_text: str) -> str:
 # ---------- Transformation parsing (CASE preservation) ----------
 
 def parse_literal_set(trans: str) -> Optional[str]:
-    """Detect 'Set to <X>' patterns → return a SQL literal."""
+    """Detect 'Set to <X>' patterns → return a SQL literal (legacy simple handler)."""
     if not trans:
         return None
     m = re.search(r"(?i)\bset\s+to\s+(.+?)(?:\s*$|\.)", trans.strip())
@@ -98,15 +105,58 @@ def extract_case_core(trans_text: str) -> Tuple[str, str]:
     if not _CASE_START.match(txt):
         return (txt, "")
 
-    # Find the first FROM after the CASE block begins.
-    # We keep everything up to (but not including) FROM in "core",
-    # and emit the remainder as a commented context.
     parts = _FROM_SPLIT.split(txt, maxsplit=1)
     if len(parts) == 2:
         core = parts[0].rstrip()
         trailing = "FROM " + parts[1].strip()
         return (core, f"-- Source context preserved: {squash(trailing)}")
     return (txt, "")
+
+# ---------- Smart Parser for 'Set' Rules (enhanced) ----------
+
+def parse_set_rule(rule_text: str) -> Optional[str]:
+    """Detects and converts free-form 'Set to ...' rules into valid SQL expressions."""
+    if not rule_text or not isinstance(rule_text, str):
+        return None
+
+    # keep original for picking exact tokens (like quoted dates), but also a lower variant
+    original = rule_text.strip()
+    text = original.lower()
+
+    # NULL
+    if "set to null" in text:
+        return "NULL"
+
+    # current timestamp (function, not string)
+    if "current_timestamp" in text:
+        return "CURRENT_TIMESTAMP()"
+
+    # ETL effective date parameter
+    if "etl.effective.start.date" in text:
+        # use triple double quotes around the variable
+        return "TO_DATE('\"\"\"${etl.effective.start.date}\"\"\"', 'yyyyMMddHHmmss')"
+
+    # Dates like 9999-12-31 (optionally with cast directions)
+    mdate = re.search(r"(\d{4}-\d{2}-\d{2})", original)
+    if mdate:
+        d = mdate.group(1)
+        if "cast" in text:
+            return f"CAST('{d}' AS DATE)"
+        return f"'{d}'"
+
+    # “Set X to Y” or “Set to Y”
+    m = re.search(r"(?i)set(?:\s+\w+)?\s+to\s+(['\"]?)([A-Za-z0-9_]+)\1", original)
+    if m:
+        val = m.group(2)
+        return f"'{val}'"
+
+    # fallback: strip comment markers and boilerplate
+    cleaned = re.sub(r"--.*", "", original)
+    cleaned = re.sub(r"(?i)\bset\s+to\b", "", cleaned)
+    cleaned = re.sub(r"(?i)\bset\b", "", cleaned).strip(" :\"'")
+    if cleaned.upper() == "NULL":
+        return "NULL"
+    return f"'{cleaned}'" if cleaned else None
 
 def transformation_expression(trans: str, target_col: str, src_col: str) -> Tuple[str, Optional[str]]:
     """
@@ -120,70 +170,98 @@ def transformation_expression(trans: str, target_col: str, src_col: str) -> Tupl
         # no transformation text; use source column if present
         return (src_col or "NULL", None)
 
-    # Handle simple "Set to ..." cases
+    # Smart "Set ..." handler first
+    if re.match(r"(?i)^\s*set\b", trans):
+        lit = parse_set_rule(trans)
+        if lit is not None:
+            return (lit, None)
+
+    # Simple literal "set to ..." (legacy)
     lit = parse_literal_set(trans)
     if lit is not None:
         return (lit, None)
 
-    # If full fragment includes "AS <target>", we'll keep the alias if present;
-    # but we'll still strip trailing FROM context if it exists.
+    # Preserve CASE body and move trailing FROM/JOIN into comment
     core, trailing_comment = extract_case_core(trans)
-    # If user included "AS <target_col>" in the fragment, leave as-is; else add alias later in caller.
     return (core, trailing_comment or None)
 
 # ---------- Joins ----------
 
+# -------------------------------------------------------------------
+# DEBUG CONTROL — set to True to print every JOIN normalization
+# -------------------------------------------------------------------
+DEBUG_JOINS = False
+
+
 def normalize_join(join_text: str) -> str:
-    """Normalize JOIN notes like 'JOIN A WITH B ON A.id=B.id' → 'JOIN A B ON ...'"""
+    """
+    Normalize JOIN statements and enforce consistent LEFT JOIN behavior.
+
+    Enhancements:
+    - Converts ambiguous JOINs to LEFT JOIN (safe default)
+    - Detects lookup/reference tables (_ref, _lkp, _xref, _map, _dim)
+      and forces LEFT JOIN even if INNER JOIN is mentioned
+    - Cleans malformed multi-table fragments (e.g., 'ossbr_2_1 mas GLSXREF ref')
+    - Deduplicates whitespace and enforces SQL-safe formatting
+    - Optional debug mode to print every normalized JOIN (set DEBUG_JOINS=True)
+
+    Modification guide:
+    --------------------
+    1️⃣  If you prefer INNER JOIN by default → comment out the LEFT JOIN substitution block.
+    2️⃣  If you want to allow all join types (inner/right/full) → comment out the LEFT JOIN enforcement section.
+    3️⃣  If you don’t want auto LEFT JOIN for lookup tables → comment out the lookup_pattern section.
+    4️⃣  If debugging JOIN parsing → set DEBUG_JOINS = True above.
+    """
+
     if not join_text:
         return ""
-    s = clean_free_text(join_text)
+
+    # Basic cleanup
+    s = clean_free_text(join_text).strip()
     s = re.sub(r"(?i)\bwith\b", " ", s)
+    s = re.sub(r"(?i)\binner\s+join\b", "JOIN", s)
     s = re.sub(r"(?i)\bjoin\b", "JOIN", s)
     s = re.sub(r"[;\n]+", " ", s)
-    return squash(s)
+
+    # -------------------------------------------------------------------
+    # 1️⃣  Default JOIN type enforcement — use LEFT JOIN unless specified
+    # -------------------------------------------------------------------
+    if not re.search(r"(?i)\b(left|right|full)\s+join\b", s):
+        s = re.sub(r"(?i)\bjoin\b", "LEFT JOIN", s)
+
+    # -------------------------------------------------------------------
+    # 2️⃣  Auto-detect lookup/reference tables and force LEFT JOIN
+    # -------------------------------------------------------------------
+    # This ensures all lookup-style joins are non-restrictive.
+    lookup_pattern = r"(?i)\b(_ref|_lkp|_xref|_map|_dim)\b"
+    if re.search(lookup_pattern, s):
+        # Force LEFT JOIN regardless of user input
+        s = re.sub(r"(?i)\b(inner|right|full)\s+join\b", "LEFT JOIN", s)
+
+    # -------------------------------------------------------------------
+    # 3️⃣  Fix malformed fragments like "LEFT JOIN ossbr_2_1 mas GLSXREF ref ON ..."
+    #      → retain only last two tokens before ON (GLSXREF ref)
+    # -------------------------------------------------------------------
+    m = re.search(r"LEFT JOIN\s+([A-Za-z0-9_]+(?:\s+[A-Za-z0-9_]+)*)\s+ON\s+(.*)", s, re.I)
+    if m:
+        table_block = m.group(1)
+        cond = m.group(2)
+        parts = table_block.split()
+        # Keep only last two tokens: table + alias
+        if len(parts) > 2:
+            table_block = " ".join(parts[-2:])
+        s = f"LEFT JOIN {table_block} ON {cond}"
+
+    # Final cleanup and spacing normalization
+    s_final = squash(s)
+
+    if DEBUG_JOINS:
+        print(f"[DEBUG] Normalized JOIN → {s_final}")
+
+    return s_final
 
 # ---------- Lookup detector ----------
 
 def detect_lookup(texts: List[str]) -> bool:
     blob = " ".join([t for t in texts if t])
     return bool(re.search(r"(?i)\blookup\b|\bref(erence)?\b|standard[_\s-]*code", blob))
-
-
-# ---------- Parse rule smart function ----------
-
-def parse_set_rule(rule_text: str) -> str:
-    """Detects and converts free-form 'Set to ...' rules into valid SQL expressions."""
-    if not rule_text or not isinstance(rule_text, str):
-        return None
-
-    text = rule_text.strip().lower()
-
-    # Handle NULLs
-    if "set to null" in text:
-        return "NULL"
-
-    # Handle current_timestamp()
-    if "current_timestamp" in text:
-        return "CURRENT_TIMESTAMP()"
-
-    # Handle etl effective date patterns
-    if "etl.effective.start.date" in text:
-        return "TO_DATE('${etl.effective.start.date}', 'yyyyMMddHHmmss')"
-
-    # Handle literal date values
-    if re.search(r"\d{4}-\d{2}-\d{2}", text):
-        date_match = re.search(r"(\d{4}-\d{2}-\d{2})", text)
-        if "cast" in text:
-            return f"CAST('{date_match.group(1)}' AS DATE)"
-        return f"'{date_match.group(1)}'"
-
-    # Handle single char/literal rules like 'Set A to A --1A'
-    if re.search(r"set\s+[a-z0-9_]+\s+to\s+([a-z0-9]+)", rule_text, re.I):
-        val = re.findall(r"set\s+[a-z0-9_]+\s+to\s+([a-z0-9]+)", rule_text, re.I)[0]
-        return f"'{val}'"
-
-    # Fallback: clean comment markers and return sanitized text
-    cleaned = re.sub(r"--.*", "", rule_text)
-    cleaned = cleaned.replace("set to", "").replace("set", "").strip()
-    return f"'{cleaned}'" if cleaned else "NULL"

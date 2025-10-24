@@ -1,4 +1,4 @@
-# build_sql_job.py (v4) — outputs full SQL, full JSON, full audit markdown
+# build_sql_job.py (v5) — outputs full SQL, full JSON, full audit markdown
 import os, re, json
 import pandas as pd
 from collections import Counter
@@ -84,70 +84,111 @@ def build_cte_sources(sources: List[str]) -> Tuple[List[str], List[str]]:
     return ctes, aliases_out
 
 def build_step1_cte(df: pd.DataFrame, primary_src: str) -> str:
-    base_alias = (primary_src.split()[-1] if " " in primary_src
-                  else (primary_src.split("_")[0] if "_" in primary_src else "mas"))
+    """
+    Build the base CTE with clean deduplicated JOINs and WHERE clauses.
+    Ensures LEFT JOIN safety and removes repeated or identical business rules.
+    """
+    base_alias = (
+        primary_src.split()[-1]
+        if " " in primary_src
+        else (primary_src.split("_")[0] if "_" in primary_src else "mas")
+    )
 
-    joins = []
-    for txt in df.get("join_clause", pd.Series()).tolist():
+    # ----- JOIN normalization -----
+    join_texts = df.get("join_clause", pd.Series()).tolist()
+    normalized_joins = []
+    seen_joins = set()
+    for txt in join_texts:
         j = normalize_join(txt)
-        if j and j not in joins:
-            joins.append(j)
+        if not j:
+            continue
+        # Remove accidental self-joins and duplicate entries (case-insensitive)
+        if re.search(fr"\b{base_alias}\b", j, re.I) and re.search(fr"\b{primary_src}\b", j, re.I):
+            continue
+        key = j.lower().strip()
+        if key not in seen_joins:
+            normalized_joins.append(j)
+            seen_joins.add(key)
 
+    joins = [f"  {j}" for j in normalized_joins]
+    join_clause = "\n".join(joins)
+
+    # ----- Business rules normalization -----
+    br_blocks_raw = [business_rules_to_where(txt) for txt in df.get("business_rule", pd.Series()).tolist()]
+    # Deduplicate business rules based on their cleaned body
+    seen_rules = set()
     br_blocks = []
-    for txt in df.get("business_rule", pd.Series()).tolist():
-        w = business_rules_to_where(txt)
-        if w:
-            br_blocks.append(w)
+    for blk in br_blocks_raw:
+        key = blk.lower().strip()
+        if key and key not in seen_rules:
+            br_blocks.append(blk)
+            seen_rules.add(key)
 
     where_lines = []
     for idx, blk in enumerate(br_blocks, 1):
         where_lines.append(f"-- Business Rule Block #{idx}\n  {blk}")
 
-    join_clause = (" " + " ".join(joins)) if joins else ""
-    where_clause = ("\nWHERE\n  " + "\n  AND ".join([l for l in where_lines if l])) if where_lines else ""
+    where_clause = (
+        "\nWHERE\n  " + "\n  AND ".join([l for l in where_lines if l])
+        if where_lines
+        else ""
+    )
 
     return (
         "step1 AS (\n"
         f"  SELECT {base_alias}.*\n"
-        f"  FROM {primary_src} {base_alias}{(' ' + join_clause) if join_clause else ''}\n"
+        f"  FROM {primary_src} {base_alias}\n"
+        f"{join_clause}\n"
         f"{where_clause}\n)"
     )
 
 def build_final_select(df: pd.DataFrame) -> Tuple[str, List[Dict[str, str]]]:
     """
     Return SELECT body string plus an audit list of {"row", "target", "raw", "sql", "note"}.
+    Handles duplicate target columns by merging transformation rules.
     """
     lines = []
     audit_rows = []
-    for idx, row in df.iterrows():
-        tgt = row.get("tgt_column") or row.get("Column/Field Name * (auto populate)", "")
-        if not tgt:
-            continue
 
-        raw_trans = row.get("transformation_rule", "")
-        src_col   = row.get("src_column", "")
+    # Group by target column (case-insensitive)
+    grouped = df.groupby(df["tgt_column"].str.lower(), dropna=False)
+
+    for tgt_lower, group in grouped:
+        tgt = group["tgt_column"].iloc[0]
+        # Combine multiple rows for same target
+        unique_rules = list({r.strip() for r in group.get("transformation_rule", []) if str(r).strip()})
+        unique_sources = list({s.strip() for s in group.get("src_column", []) if str(s).strip()})
+        merged_note = ""
+
+        # Pick first transformation logic
+        if len(unique_rules) > 1:
+            merged_note = f"-- NOTE: merged {len(unique_rules)} variations for target column '{tgt}'"
+        elif len(group) > 1:
+            merged_note = f"-- NOTE: merged {len(group)} duplicate definitions for target column '{tgt}'"
+
+        raw_trans = unique_rules[0] if unique_rules else ""
+        src_col = unique_sources[0] if unique_sources else ""
 
         expr, trailing_comment = transformation_expression(
             raw_trans, target_col=tgt, src_col=src_col
         )
 
-        # If the user already included "AS <tgt>" inside expr, keep as-is; else alias here.
-        if re.search(rf"(?i)\bas\s+{re.escape(tgt)}\b", expr):
-            select_line = "    " + squash(expr)
-        else:
-            select_line = f"    {expr} AS {tgt}"
-
+        # Build SQL select line
+        select_line = f"    {expr} AS {tgt}"
+        if merged_note:
+            select_line = f"    {merged_note}\n{select_line}"
         if trailing_comment:
             select_line = f"{select_line}\n    {trailing_comment}"
 
         lines.append(select_line)
 
+        # Audit tracking
         audit_rows.append({
-            "row": str(idx+1),
+            "row": f"{group.index.min() + 1}",
             "target": tgt,
-            "raw": raw_trans.strip(),
+            "raw": " | ".join(unique_rules) or "",
             "sql": expr.strip(),
-            "note": (trailing_comment or "")
+            "note": merged_note or (trailing_comment or "")
         })
 
     return "SELECT\n" + ",\n".join(lines) + "\nFROM step1", audit_rows
@@ -235,9 +276,10 @@ def write_audit_md(audit_rows: List[Dict[str, str]], md_path: str):
         f.write("| Row | Target Column | Raw Transformation (verbatim) | Parsed SQL Expression | Notes |\n")
         f.write("|---:|---|---|---|---|\n")
         for r in audit_rows:
-            raw = r["raw"].replace("\n", "<br>").replace("|", "\|")
-            sql = r["sql"].replace("\n", "<br>").replace("|", "\|")
-            note = (r["note"] or "").replace("\n", "<br>").replace("|", "\|")
+            # escape | in markdown table safely and silence invalid escape warnings
+            raw = (r["raw"] or "").replace("\n", "<br>").replace("|", "\\|")
+            sql = (r["sql"] or "").replace("\n", "<br>").replace("|", "\\|")
+            note = (r["note"] or "").replace("\n", "<br>").replace("|", "\\|")
             f.write(f"| {r['row']} | `{r['target']}` | {raw} | `{sql}` | {note} |\n")
 
 # ---------- Orchestration ----------

@@ -2,6 +2,13 @@
 import re
 from typing import List, Tuple, Optional
 
+# -------------------------------------------------------------------
+# GLOBAL DEBUG SWITCHES
+# -------------------------------------------------------------------
+DEBUG_JOINS = False           # Print normalized JOINs during processing
+DEBUG_BUSINESS_RULES = False  # Print extracted predicates & notes for business rules
+
+
 def squash(s: str) -> str:
     return re.sub(r"\s+", " ", (s or "")).strip()
 
@@ -180,15 +187,78 @@ def transformation_expression(trans: str, target_col: str, src_col: str) -> Tupl
 
 # ---------- Joins ----------
 
+# -------------------------------------------------------------------
+# DEBUG CONTROL — set to True to print every JOIN normalization
+# -------------------------------------------------------------------
+DEBUG_JOINS = False
+
+
 def normalize_join(join_text: str) -> str:
-    """Normalize JOIN notes like 'JOIN A WITH B ON A.id=B.id' → 'JOIN A B ON ...'"""
+    """
+    Normalize JOIN statements and enforce consistent LEFT JOIN behavior.
+
+    Enhancements:
+    - Converts ambiguous JOINs to LEFT JOIN (safe default)
+    - Detects lookup/reference tables (_ref, _lkp, _xref, _map, _dim)
+      and forces LEFT JOIN even if INNER JOIN is mentioned
+    - Cleans malformed multi-table fragments (e.g., 'ossbr_2_1 mas GLSXREF ref')
+    - Deduplicates whitespace and enforces SQL-safe formatting
+    - Optional debug mode to print every normalized JOIN (set DEBUG_JOINS=True)
+
+    Modification guide:
+    --------------------
+    1️⃣  If you prefer INNER JOIN by default → comment out the LEFT JOIN substitution block.
+    2️⃣  If you want to allow all join types (inner/right/full) → comment out the LEFT JOIN enforcement section.
+    3️⃣  If you don’t want auto LEFT JOIN for lookup tables → comment out the lookup_pattern section.
+    4️⃣  If debugging JOIN parsing → set DEBUG_JOINS = True above.
+    """
+
     if not join_text:
         return ""
-    s = clean_free_text(join_text)
+
+    # Basic cleanup
+    s = clean_free_text(join_text).strip()
     s = re.sub(r"(?i)\bwith\b", " ", s)
+    s = re.sub(r"(?i)\binner\s+join\b", "JOIN", s)
     s = re.sub(r"(?i)\bjoin\b", "JOIN", s)
     s = re.sub(r"[;\n]+", " ", s)
-    return squash(s)
+
+    # -------------------------------------------------------------------
+    # 1️⃣  Default JOIN type enforcement — use LEFT JOIN unless specified
+    # -------------------------------------------------------------------
+    if not re.search(r"(?i)\b(left|right|full)\s+join\b", s):
+        s = re.sub(r"(?i)\bjoin\b", "LEFT JOIN", s)
+
+    # -------------------------------------------------------------------
+    # 2️⃣  Auto-detect lookup/reference tables and force LEFT JOIN
+    # -------------------------------------------------------------------
+    # This ensures all lookup-style joins are non-restrictive.
+    lookup_pattern = r"(?i)\b(_ref|_lkp|_xref|_map|_dim)\b"
+    if re.search(lookup_pattern, s):
+        # Force LEFT JOIN regardless of user input
+        s = re.sub(r"(?i)\b(inner|right|full)\s+join\b", "LEFT JOIN", s)
+
+    # -------------------------------------------------------------------
+    # 3️⃣  Fix malformed fragments like "LEFT JOIN ossbr_2_1 mas GLSXREF ref ON ..."
+    #      → retain only last two tokens before ON (GLSXREF ref)
+    # -------------------------------------------------------------------
+    m = re.search(r"LEFT JOIN\s+([A-Za-z0-9_]+(?:\s+[A-Za-z0-9_]+)*)\s+ON\s+(.*)", s, re.I)
+    if m:
+        table_block = m.group(1)
+        cond = m.group(2)
+        parts = table_block.split()
+        # Keep only last two tokens: table + alias
+        if len(parts) > 2:
+            table_block = " ".join(parts[-2:])
+        s = f"LEFT JOIN {table_block} ON {cond}"
+
+    # Final cleanup and spacing normalization
+    s_final = squash(s)
+
+    if DEBUG_JOINS:
+        print(f"[DEBUG] Normalized JOIN → {s_final}")
+
+    return s_final
 
 # ---------- Lookup detector ----------
 
