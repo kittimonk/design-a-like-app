@@ -194,6 +194,7 @@ def parse_set_rule(rule_text: str) -> Optional[str]:
     """Detects and converts free-form 'Set to ...' or 'Straight move' rules into valid SQL expressions.
        Enhanced (Patch 8): adds smart detection for conditional defaults like
        'if blank then 0', 'if empty pass N', 'when null assign 1.0', etc.
+       Also fixes trailing inline comment markers like '--1A' being treated as literals.
     """
     if not rule_text or not isinstance(rule_text, str):
         return None
@@ -252,6 +253,8 @@ def parse_set_rule(rule_text: str) -> Optional[str]:
         val = m.group(1).strip().rstrip(".")
         # remove trailing parenthetical commentary
         val = re.sub(r"\s*\(.*?\)\s*$", "", val).strip()
+        # remove inline comment markers like "--1A"
+        val = re.sub(r"--.*", "", val).strip()
         # +00331 → 331 (strip leading plus zeros if numeric)
         if re.fullmatch(r"[+]?0*\d+", val):
             num = re.sub(r"^[+]?0*", "", val) or "0"
