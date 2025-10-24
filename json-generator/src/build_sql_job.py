@@ -7,7 +7,7 @@ from typing import List, Dict, Any, Tuple
 from rule_utils import (
     squash, clean_free_text, parse_literal_set, transformation_expression,
     normalize_join, business_rules_to_where, detect_lookup, parse_set_rule,
-    _infer_datatype_from_value, _cast_to_datatype, _debug_log
+    _infer_datatype_from_value, _cast_to_datatype, _debug_log, _needs_cast
 )
 
 # Toggle these if you want more verbose debug logs written to file
