@@ -225,6 +225,11 @@ def parse_set_rule(rule_text: str) -> Optional[str]:
     cleaned = re.sub(r"--.*", "", original)
     cleaned = re.sub(r"(?i)\bset\s+to\b", "", cleaned)
     cleaned = re.sub(r"(?i)\bset\b", "", cleaned).strip(" :\"'")
+
+    # 🩹 Fix: prevent wrapping CASE or SQL fragments in quotes
+    if re.search(r"\b(case|when|select|join|from)\b", cleaned, re.I):
+        return cleaned
+
     if cleaned.upper() == "NULL":
         return "NULL"
     return f"'{cleaned}'" if cleaned else None
@@ -281,6 +286,7 @@ def normalize_join(join_text: str) -> str:
       and forces LEFT JOIN even if INNER JOIN is mentioned
     - Cleans malformed multi-table fragments (e.g., 'ossbr_2_1 mas GLSXREF ref')
     - Deduplicates whitespace and enforces SQL-safe formatting
+    - Removes duplicated or concatenated JOIN fragments
     - Optional debug mode to print every normalized JOIN (set DEBUG_JOINS=True)
 
     Modification guide:
@@ -300,6 +306,11 @@ def normalize_join(join_text: str) -> str:
     s = re.sub(r"(?i)\binner\s+join\b", "JOIN", s)
     s = re.sub(r"(?i)\bjoin\b", "JOIN", s)
     s = re.sub(r"[;\n]+", " ", s)
+
+    # -------------------------------------------------------------------
+    # 🩹 Fix: Remove concatenated or duplicate JOIN fragments (e.g. two JOINs stuck together)
+    # -------------------------------------------------------------------
+    s = re.sub(r"(LEFT\s+JOIN\s+[A-Za-z0-9_]+\s+[A-Za-z0-9_]+\s+)+", " ", s, flags=re.I)
 
     # -------------------------------------------------------------------
     # 1️⃣  Default JOIN type enforcement — use LEFT JOIN unless specified

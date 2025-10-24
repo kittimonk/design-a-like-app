@@ -1889,3 +1889,929 @@ Target: varble_rate_id
 Raw: Set to 0
 Parsed: '0'
 
+
+[1] 🧩 JOIN NORMALIZATION — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.WASTE_SECURITY_CODE
+
+
+[2] 🧩 JOIN NORMALIZATION — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.WASTE_SECURITY_CODE
+
+
+[3] 🧩 JOIN NORMALIZATION — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.WASTE_SECURITY_CODE
+
+
+[4] 🧩 JOIN NORMALIZATION — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.WASTE_SECURITY_CODE
+
+
+[5] 🧩 JOIN NORMALIZATION — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.WASTE_SECURITY_CODE
+
+
+[6] 🧩 JOIN NORMALIZATION — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.WASTE_SECURITY_CODE
+
+
+[7] 🧩 JOIN NORMALIZATION — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.WASTE_SECURITY_CODE
+
+
+[8] 🧩 JOIN NORMALIZATION — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.WASTE_SECURITY_CODE
+
+
+[9] 🧩 JOIN NORMALIZATION — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.WASTE_SECURITY_CODE
+
+
+[10] 🧩 BUSINESS RULE EXTRACTION — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+Predicates Detected:
+  - TRIM(mas.SRSECCODE) <> ''
+  - mas.SRSTATUS = 'A'
+
+Notes Detected:
+  - -- TODO: Duplicates: enforce ROW_NUMBER() OVER (PARTITION BY mas.SRSECCODE ORDER BY <choose>) = 1
+  - -- NOTE: Evaluate rule -> reject the record if duplicate ossbr_2_1.SRSECCODE found and
+  - -- NOTE: Evaluate rule -> reject the record and
+  - -- NOTE: Exclusion rule -> 3) If ossbr_2_1.SRSTATUS <> 'A' (i.e. not active) exclude the record (no exception logging required)
+
+
+[11] 🧩 BUSINESS RULE WHERE BLOCK — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+-- TODO: Duplicates: enforce ROW_NUMBER() OVER (PARTITION BY mas.SRSECCODE ORDER BY <choose>) = 1
+  -- NOTE: Evaluate rule -> reject the record if duplicate ossbr_2_1.SRSECCODE found and
+  -- NOTE: Evaluate rule -> reject the record and
+  -- NOTE: Exclusion rule -> 3) If ossbr_2_1.SRSTATUS <> 'A' (i.e. not active) exclude the record (no exception logging required)
+  TRIM(mas.SRSECCODE) <> '' AND mas.SRSTATUS = 'A'
+
+
+[12] 🧩 BUSINESS RULE EXTRACTION — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+Predicates Detected:
+  - TRIM(mas.SRSECCODE) <> ''
+  - mas.SRSTATUS = 'A'
+
+Notes Detected:
+  - -- TODO: Duplicates: enforce ROW_NUMBER() OVER (PARTITION BY mas.SRSECCODE ORDER BY <choose>) = 1
+  - -- NOTE: Evaluate rule -> reject the record if duplicate ossbr_2_1.SRSECCODE found and
+  - -- NOTE: Evaluate rule -> reject the record and
+  - -- NOTE: Exclusion rule -> 3) If ossbr_2_1.SRSTATUS <> 'A' (i.e. not active) exclude the record (no exception logging required)
+
+
+[13] 🧩 BUSINESS RULE WHERE BLOCK — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+-- TODO: Duplicates: enforce ROW_NUMBER() OVER (PARTITION BY mas.SRSECCODE ORDER BY <choose>) = 1
+  -- NOTE: Evaluate rule -> reject the record if duplicate ossbr_2_1.SRSECCODE found and
+  -- NOTE: Evaluate rule -> reject the record and
+  -- NOTE: Exclusion rule -> 3) If ossbr_2_1.SRSTATUS <> 'A' (i.e. not active) exclude the record (no exception logging required)
+  TRIM(mas.SRSECCODE) <> '' AND mas.SRSTATUS = 'A'
+
+
+[14] 🧩 BUSINESS RULE EXTRACTION — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+Predicates Detected:
+  - TRIM(mas.SRSECCODE) <> ''
+  - mas.SRSTATUS = 'A'
+
+Notes Detected:
+  - -- TODO: Duplicates: enforce ROW_NUMBER() OVER (PARTITION BY mas.SRSECCODE ORDER BY <choose>) = 1
+  - -- NOTE: Evaluate rule -> reject the record if duplicate ossbr_2_1.SRSECCODE found and
+  - -- NOTE: Evaluate rule -> reject the record and
+  - -- NOTE: Exclusion rule -> 3) If ossbr_2_1.SRSTATUS <> 'A' (i.e. not active) exclude the record (no exception logging required)
+
+
+[15] 🧩 BUSINESS RULE WHERE BLOCK — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+-- TODO: Duplicates: enforce ROW_NUMBER() OVER (PARTITION BY mas.SRSECCODE ORDER BY <choose>) = 1
+  -- NOTE: Evaluate rule -> reject the record if duplicate ossbr_2_1.SRSECCODE found and
+  -- NOTE: Evaluate rule -> reject the record and
+  -- NOTE: Exclusion rule -> 3) If ossbr_2_1.SRSTATUS <> 'A' (i.e. not active) exclude the record (no exception logging required)
+  TRIM(mas.SRSECCODE) <> '' AND mas.SRSTATUS = 'A'
+
+
+[16] 🧩 TRANSFORMATION (smart rule) — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+Target: asset_liblty_CD
+Raw: Set to +00331 (Asset).
+Parsed: '+00331 (Asset).'
+
+
+[17] 🧩 TRANSFORMATION (smart rule) — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+Target: compnd_int_CD
+Raw: Set to -2 (No Source).
+Parsed: '-2 (No Source).'
+
+
+[18] 🧩 TRANSFORMATION (literal rule) — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+Target: curncy_CD
+Raw: CASE -- Check if SRCURRCODE is one of the non-ISO standard and obsolete codes 
+ WHEN mas.SRCURRCODE IN ('BEF', 'DEM', 'FRF', 'GRD', 'TEP', 'ITL','NLG','PTE') THEN '+00618* -- Other -- If no match found, default to +00616 (CAD) ELSE CASE -- If secrty_curncy_id is -00003 or -00004, set to +00616 (CAD) WHEN mas.secrty_curncy_id IN (-3,-4) THEN '+00616' -- Use standard code mapping based on SRCURRCODE ELSE COALESCE(get stndrd_id('EDW','EDW_CURNCY _CD, 'N', mas.secrty_curncy_id), '+00616' -- Default to CAD if no match found) END END AS CURNCY_CD FROM ossbr_2_1 mas
+Parsed: '+00616 (CAD) WHEN mas'
+
+
+[19] 🧩 TRANSFORMATION (complex rule) — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+Target: cusip_id
+Source: cusip
+Raw:
+CASE WHEN RTRIM(mas.SRCUSIPNBR)=  THEN '000000000' ELSE mas.SRCUSIPNBR END AS CUSIP_ID FROM ossbr_2_1 mas
+
+Parsed Core:
+CASE WHEN RTRIM(mas.SRCUSIPNBR)=  THEN '000000000' ELSE mas.SRCUSIPNBR END AS CUSIP_ID
+Trailing:
+-- Source context preserved: FROM ossbr_2_1 mas
+
+
+[20] 🧩 TRANSFORMATION (complex rule) — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+Target: erlcsh_eligbl_in
+Source: srctype
+Raw:
+CASE WHEN mas.SRSECTYPE = '210' THEN 'N' ELSE 'Y' END AS ERLCSH_ELIGBL_IN FROM ossbr_2_1 mas
+
+Parsed Core:
+CASE WHEN mas.SRSECTYPE = '210' THEN 'N' ELSE 'Y' END AS ERLCSH_ELIGBL_IN
+Trailing:
+-- Source context preserved: FROM ossbr_2_1 mas
+
+
+[21] 🧩 TRANSFORMATION (smart rule) — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+Target: final_offer_dt
+Raw: Set to NULL
+Parsed: NULL
+
+
+[22] 🧩 TRANSFORMATION (literal rule) — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+Target: first_offer_dt
+Raw: CASE -- Check if SBDSBDATE is a valid date and not equal to '0001-01-01', WHEN TRY_CAST(mas.SBDSBDATE AS DATE) IS NOT NULL AND mas.SBDSBDATE <> '0001-01-01' THEN mas.SBDSBDATE ELSE NULL --Set to NULL it the date is invalid or '0001-01-01' END AS FIRST_OFFER_DT FROM ossbr_2_1 mas
+Parsed: 'NULL it the date is invalid or '0001-01-01' END AS FIRST_OFFER_DT FROM ossbr_2_1 mas'
+
+
+[23] 🧩 TRANSFORMATION (smart rule) — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+Target: fis_paper_type_CD
+Raw: Set A to A --1A
+Parsed: 'A'
+
+
+[24] 🧩 TRANSFORMATION (smart rule) — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+Target: fis_secrty_id
+Raw: Set to 0
+Parsed: '0'
+
+
+[25] 🧩 TRANSFORMATION (complex rule) — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+Target: int_freq_CD
+Source: tantrum_family_CD
+Raw:
+CASE -- Check if tantrum_FAMLY_CD is +01309 (MMK) or +01310 (FIX) 
+ WHEN tantrum.INSTR_FAMILY_CD IN (*+01309*, '+01310') THEN COALESCE(get_stndrd _id('EDW', 'EDW_INT_FREQ_CD*', 'N', mas.SRPREQ),'-00001' -- Default to Not Applicable if no standard mapping is found 
+ ELSE '-00001' -- Not Applicable 
+ END AS INT_FREQ_CD FROM ossbr_2_1 mas LEFT JOIN tantrum tantrum ON mas.SRSECCODE = tantrum.SRSECCODE
+
+Parsed Core:
+CASE -- Check if tantrum_FAMLY_CD is +01309 (MMK) or +01310 (FIX) 
+ WHEN tantrum.INSTR_FAMILY_CD IN (*+01309*, '+01310') THEN COALESCE(get_stndrd _id('EDW', 'EDW_INT_FREQ_CD*', 'N', mas.SRPREQ),'-00001' -- Default to Not Applicable if no standard mapping is found 
+ ELSE '-00001' -- Not Applicable 
+ END AS INT_FREQ_CD
+Trailing:
+-- Source context preserved: FROM ossbr_2_1 mas LEFT JOIN tantrum tantrum ON mas.SRSECCODE = tantrum.SRSECCODE
+
+
+[26] 🧩 TRANSFORMATION (smart rule) — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+Target: int_rate_id
+Raw: Set to 0
+Parsed: '0'
+
+
+[27] 🧩 TRANSFORMATION (smart rule) — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+Target: int_relatn_CD
+Raw: Set to -2 (No Source).
+Parsed: '-2 (No Source).'
+
+
+[28] 🧩 TRANSFORMATION (complex rule) — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+Target: int_rt
+Source: interestrate
+Raw:
+CASE WHEN TRY_CAST(mas.SRPMTRATE AS FLAOT) IS NOT NULL AND mas.SRPMTRATE > 0 AND mas.SRPMTRATE <= 999.99999 THEN mas.SRPMTRATE ELSE NULL END AS INT_RT FROM ossbr_2_1 mas
+
+Parsed Core:
+CASE WHEN TRY_CAST(mas.SRPMTRATE AS FLAOT) IS NOT NULL AND mas.SRPMTRATE > 0 AND mas.SRPMTRATE <= 999.99999 THEN mas.SRPMTRATE ELSE NULL END AS INT_RT
+Trailing:
+-- Source context preserved: FROM ossbr_2_1 mas
+
+
+[29] 🧩 TRANSFORMATION (smart rule) — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+Target: issuer_org_id
+Raw: Set to 0
+Parsed: '0'
+
+
+[30] 🧩 TRANSFORMATION (smart rule) — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+Target: last_change_dt
+Raw: Set to etl.effective.start.date in the fromat yyyy-mm-dd
+Parsed: TO_DATE('"""${etl.effective.start.date}"""', 'yyyyMMddHHmmss')
+
+
+[31] 🧩 TRANSFORMATION (smart rule) — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+Target: lifecy_CD
+Raw: Set to +00114 (Active).
+Parsed: '+00114 (Active).'
+
+
+[32] 🧩 TRANSFORMATION (smart rule) — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+Target: load_ts
+Raw: set to current_timestamp()
+Parsed: CURRENT_TIMESTAMP()
+
+
+[33] 🧩 TRANSFORMATION (complex rule) — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+Target: mu_fund_family_CD
+Source: MFIN-FUND-NUMBER
+Raw:
+CASE WHEN ref.sm_SECURITY_CODE IS NOT NULL AND LEFT(ref.SEND_CD, 3) = 'SBB' THEN CASE WHEN edx.MFIN_SEND_NUMBER IS NOT NULL THEN CASE WHEN edx.MFIN_ASSET_ORDER = 1 THEN +08830' -- MMK /n WHEN edx.MFIN_ASSET_ORDER = 2 THEN '+08831' -- PMMK /n WHEN edx.MFIN_ASSET_ORDER = 3 THEN +08832' -- ING /n WHEN edx.MFIN_ASSET_ORDER = 4 THEN '+08833' -- BAL /n WHEN edx.MFIN_ASSET_ORDER = 5 THEN +08834' -- INX /n WHEN edx.MFIN_ASSET_ORDER = 6 THEN '+08835' -- CDNEQ /n WHEN edx.MFIN_ASSET_ORDER = 7 THEN '+08836' -- USEQ /n WHEN edx.MFIN_ASSET_ORDER = 8 THEN '+08837' -- SEC /n WHEN edx.MFIN_ASSET_ORDER = 9 THEN '+08838' -- GLO /n WHEN edx.MFIN_ASSET_ORDER = 10 THEN '+08839' -- MAPM /n WHEN edx.MFIN_ASSET_ORDER = 11 THEN '+08840' -- MAP /n WHEN edx.MFIN_ASSET_ORDER - 12 THEN '+08841' -- MAP /n WHEN edx.MFIN_ASSET_ORDER - 13 THEN +08842' -- GIC /n WHEN edx.MFIN_ASSET_ORDER = 14 THEN +12553' -- COMFORT /n WHEN edx.MFIN_ASSET_ORDER = 15 THEN +12554* -- ADVANTAGE /n WHEN edx.MFIN_ASSET_ORDER = 16 THEN '+12559' -- CORPORATE /n ELSE '-00004' -- Invalid /n END ELSE -00001' -- Not Applicable /n END ELSE -00001' -- Not Applicable /n END AS mu_fund_FAMILY_CD FROM ossbr_2_1 mas LEFT JOIN GLSREF ref ON mas.SRSECCODE = ref.sm_SECURITY_CODE LEFT JOIN MFIN ed ON SUBSTRING (ref.SEND_CD, 4, 5) = edx.MFIN_SEND_NUMBER
+
+Parsed Core:
+CASE WHEN ref.sm_SECURITY_CODE IS NOT NULL AND LEFT(ref.SEND_CD, 3) = 'SBB' THEN CASE WHEN edx.MFIN_SEND_NUMBER IS NOT NULL THEN CASE WHEN edx.MFIN_ASSET_ORDER = 1 THEN +08830' -- MMK /n WHEN edx.MFIN_ASSET_ORDER = 2 THEN '+08831' -- PMMK /n WHEN edx.MFIN_ASSET_ORDER = 3 THEN +08832' -- ING /n WHEN edx.MFIN_ASSET_ORDER = 4 THEN '+08833' -- BAL /n WHEN edx.MFIN_ASSET_ORDER = 5 THEN +08834' -- INX /n WHEN edx.MFIN_ASSET_ORDER = 6 THEN '+08835' -- CDNEQ /n WHEN edx.MFIN_ASSET_ORDER = 7 THEN '+08836' -- USEQ /n WHEN edx.MFIN_ASSET_ORDER = 8 THEN '+08837' -- SEC /n WHEN edx.MFIN_ASSET_ORDER = 9 THEN '+08838' -- GLO /n WHEN edx.MFIN_ASSET_ORDER = 10 THEN '+08839' -- MAPM /n WHEN edx.MFIN_ASSET_ORDER = 11 THEN '+08840' -- MAP /n WHEN edx.MFIN_ASSET_ORDER - 12 THEN '+08841' -- MAP /n WHEN edx.MFIN_ASSET_ORDER - 13 THEN +08842' -- GIC /n WHEN edx.MFIN_ASSET_ORDER = 14 THEN +12553' -- COMFORT /n WHEN edx.MFIN_ASSET_ORDER = 15 THEN +12554* -- ADVANTAGE /n WHEN edx.MFIN_ASSET_ORDER = 16 THEN '+12559' -- CORPORATE /n ELSE '-00004' -- Invalid /n END ELSE -00001' -- Not Applicable /n END ELSE -00001' -- Not Applicable /n END AS mu_fund_FAMILY_CD
+Trailing:
+-- Source context preserved: FROM ossbr_2_1 mas LEFT JOIN GLSREF ref ON mas.SRSECCODE = ref.sm_SECURITY_CODE LEFT JOIN MFIN ed ON SUBSTRING (ref.SEND_CD, 4, 5) = edx.MFIN_SEND_NUMBER
+
+
+[34] 🧩 TRANSFORMATION (complex rule) — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+Target: mu_fund_id
+Source: SEND-CD
+Raw:
+CASE WHEN ref.sm_SECURITY_CODE IS NOT NULL THEN ref.SEND_CD ELSE '00000000' END AS mu_fund_ID FROM ossbr_2_1 mas LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.sm_SECURITY_CODE
+
+Parsed Core:
+CASE WHEN ref.sm_SECURITY_CODE IS NOT NULL THEN ref.SEND_CD ELSE '00000000' END AS mu_fund_ID
+Trailing:
+-- Source context preserved: FROM ossbr_2_1 mas LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.sm_SECURITY_CODE
+
+
+[35] 🧩 TRANSFORMATION (smart rule) — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+Target: row_exclsn_dt
+Raw: Set to NULL
+Parsed: NULL
+
+
+[36] 🧩 TRANSFORMATION (complex rule) — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+Target: secrty_class_id
+Source: borclass
+Raw:
+CASE WHEN TRY_CAST(mas.SRSECCLAS AS INT) IS NOT NULL THEN mas.SRSECCLAS ELSE '0' END AS SECRTY_CLASS_ID FROM ossbr_2_1 mas
+
+Parsed Core:
+CASE WHEN TRY_CAST(mas.SRSECCLAS AS INT) IS NOT NULL THEN mas.SRSECCLAS ELSE '0' END AS SECRTY_CLASS_ID
+Trailing:
+-- Source context preserved: FROM ossbr_2_1 mas
+
+
+[37] 🧩 TRANSFORMATION (smart rule) — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+Target: secrty_view_CD
+Raw: Set to +01342 (DB).
+Parsed: '+01342 (DB).'
+
+
+[38] 🧩 TRANSFORMATION (smart rule) — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+Target: sm_secrty_id
+Raw: Straight move (if date field then set Fromat source date as YYYY-MM-DD)
+Parsed: TO_DATE({source_column}, 'YYYY-MM-DD')
+
+
+[39] 🧩 TRANSFORMATION (complex rule) — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+Target: sm_secrty_type_id
+Source: srctype
+Raw:
+CASE WHEN TRY_CAST(mas.SRSECTYPE AS INT) IS NOT NULL THEN mas.SRSECTYPE ELSE '+00000' END AS sm.SECRTY_TYPE_ID FROM ossbr_2_1 mas
+
+Parsed Core:
+CASE WHEN TRY_CAST(mas.SRSECTYPE AS INT) IS NOT NULL THEN mas.SRSECTYPE ELSE '+00000' END AS sm.SECRTY_TYPE_ID
+Trailing:
+-- Source context preserved: FROM ossbr_2_1 mas
+
+
+[40] 🧩 TRANSFORMATION (smart rule) — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+Target: source_appl_CD
+Raw: Set to +00239 (GLS)
+Parsed: '+00239 (GLS)'
+
+
+[41] 🧩 TRANSFORMATION (default passthrough) — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+Target: sumary_combin_id
+Expr: NULL
+
+
+[42] 🧩 TRANSFORMATION (complex rule) — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+Target: tantrum_family_CD
+Source: srctype
+Raw:
+CASE WHEN ref.sm_SECURITY_CODE IS NOT NULL THEN CASE WHEN mas.SRSECTYPE IN ('380','331') THEN '+01313' ELSE '+01316' END ELSE CASE WHEN mas.SRSECTYPE = '220' THEN '+01312' WHEN mas.SRSECTYPE IN ('315','600','520','420','310','330','510') THEN '+01314'  WHEN mas.SRSECTYPE IN ('551','553','555','559','567','550','556','557','570','581','554','558','568','569','573','562','530') THEN '+01315' WHEN mas.SRSECTYPE IN ('210','230','240') THEN '+01309' WHEN mas.SRSECTYPE IN ('263','265','275','260','261','270','262','276','290','295') THEN '+01310' ELSE '+01316'  END END AS tantrum_family_cd LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.sm_SECURITY_CODE
+
+Parsed Core:
+CASE WHEN ref.sm_SECURITY_CODE IS NOT NULL THEN CASE WHEN mas.SRSECTYPE IN ('380','331') THEN '+01313' ELSE '+01316' END ELSE CASE WHEN mas.SRSECTYPE = '220' THEN '+01312' WHEN mas.SRSECTYPE IN ('315','600','520','420','310','330','510') THEN '+01314'  WHEN mas.SRSECTYPE IN ('551','553','555','559','567','550','556','557','570','581','554','558','568','569','573','562','530') THEN '+01315' WHEN mas.SRSECTYPE IN ('210','230','240') THEN '+01309' WHEN mas.SRSECTYPE IN ('263','265','275','260','261','270','262','276','290','295') THEN '+01310' ELSE '+01316'  END END AS tantrum_family_cd LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.sm_SECURITY_CODE
+Trailing:
+(none)
+
+
+[43] 🧩 TRANSFORMATION (complex rule) — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+Target: tantrum_issued_in
+Source: SEND-CD
+Raw:
+CASE -- Check if ossbr_2_1.SRSECCODE matches GLSXREF.sm_SECURITY_CODE 
+ WHEN ref.sm_SECURITY_CODE IS NOT NULL AND LEFT(ref.SEND_CD, 3) IN ('SBM', 'SBG', 'SBS','SBB', 'SBC') THEN 'Y' -- Match found and SEND_CD starts with specified values WHEN LEFT(mas.SRSHSBESE, 2) = 'SB' THEN 'Y' -- First two characters of SRSHSBESE are 'SB' ELSE 'N' -- Default to 'N' END AS tantrum_issued_in FROM ossbr_2_1 mas LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.sm_SECURITY_CODE
+
+Parsed Core:
+CASE -- Check if ossbr_2_1.SRSECCODE matches GLSXREF.sm_SECURITY_CODE 
+ WHEN ref.sm_SECURITY_CODE IS NOT NULL AND LEFT(ref.SEND_CD, 3) IN ('SBM', 'SBG', 'SBS','SBB', 'SBC') THEN 'Y' -- Match found and SEND_CD starts with specified values WHEN LEFT(mas.SRSHSBESE, 2) = 'SB' THEN 'Y' -- First two characters of SRSHSBESE are 'SB' ELSE 'N' -- Default to 'N' END AS tantrum_issued_in
+Trailing:
+-- Source context preserved: FROM ossbr_2_1 mas LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.sm_SECURITY_CODE
+
+
+[44] 🧩 TRANSFORMATION (complex rule) — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+Target: tantrum_na
+Source: SEND_DESC
+Raw:
+CASE WHEN ref.sm_SECURITY_CODE IS NOT NULL THEN RTRIM(ref.FUND_DESC) ELSE RTRIM(mas.SRSHSBESE)
+
+Parsed Core:
+CASE WHEN ref.sm_SECURITY_CODE IS NOT NULL THEN RTRIM(ref.FUND_DESC) ELSE RTRIM(mas.SRSHSBESE)
+Trailing:
+(none)
+
+
+[45] 🧩 TRANSFORMATION (complex rule) — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+Target: tantrumid
+Source: SEND_CD
+Raw:
+CASE
+  WHEN LEFT(GLSXREF.SEND_CD, 3) = 'SBB' THEN
+    CASE
+      WHEN SUBSTRING(GLSXREF.SEND_CD, 4, 5) = MFSPRIC.PRC_DTL_SEND_NUM THEN NULL
+      ELSE
+        CASE
+          WHEN SUBSTRING(GLSXREF.SEND_CD, 4, 3) LIKE '[0-9]%' AND SUBSTRING(GLSXREF.SEND_CD, 7, 2) = '*' THEN CONCAT(230000000000, SUBSTRING(GLSXREF.SEND_CD, 4, 3))
+          WHEN LEN(TRIM(SUBSTRING(GLSXREF.SEND_CD, 4, 5))) > 0 THEN CONCAT(STRING_AGG(FORMAT(ASCII(SUBSTRING(GLSXREF.SEND_CD, 4, 1)), '00')), '000')
+          ELSE CONCAT('23000', STRING_AGG(FORMAT(ASCII(SUBSTRING(GLSXREF.SEND_CD, 4, 1)), '00')))
+        END
+    END
+  ELSE CONCAT('500', STRING_AGG(FORMAT(ASCII(ossbr_2_1.SRSECCODE), '00')))
+END AS tantrum_id
+FROM ossbr_2_1
+LEFT JOIN GLSXREF ON ossbr_2_1.SRSECCODE = GLSXREF.sm_SECURITY_CODE
+LEFT JOIN MFSPRIC ON SUBSTRING(GLSXREF.SEND_CD, 4, 5) = MFSPRIC.PRC_DTL_SEND_NUM
+
+Parsed Core:
+CASE
+  WHEN LEFT(GLSXREF.SEND_CD, 3) = 'SBB' THEN
+    CASE
+      WHEN SUBSTRING(GLSXREF.SEND_CD, 4, 5) = MFSPRIC.PRC_DTL_SEND_NUM THEN NULL
+      ELSE
+        CASE
+          WHEN SUBSTRING(GLSXREF.SEND_CD, 4, 3) LIKE '[0-9]%' AND SUBSTRING(GLSXREF.SEND_CD, 7, 2) = '*' THEN CONCAT(230000000000, SUBSTRING(GLSXREF.SEND_CD, 4, 3))
+          WHEN LEN(TRIM(SUBSTRING(GLSXREF.SEND_CD, 4, 5))) > 0 THEN CONCAT(STRING_AGG(FORMAT(ASCII(SUBSTRING(GLSXREF.SEND_CD, 4, 1)), '00')), '000')
+          ELSE CONCAT('23000', STRING_AGG(FORMAT(ASCII(SUBSTRING(GLSXREF.SEND_CD, 4, 1)), '00')))
+        END
+    END
+  ELSE CONCAT('500', STRING_AGG(FORMAT(ASCII(ossbr_2_1.SRSECCODE), '00')))
+END AS tantrum_id
+Trailing:
+-- Source context preserved: FROM ossbr_2_1 LEFT JOIN GLSXREF ON ossbr_2_1.SRSECCODE = GLSXREF.sm_SECURITY_CODE LEFT JOIN MFSPRIC ON SUBSTRING(GLSXREF.SEND_CD, 4, 5) = MFSPRIC.PRC_DTL_SEND_NUM
+
+
+[46] 🧩 TRANSFORMATION (smart rule) — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+Target: tct_issue_in
+Raw: Set to 'N'
+Parsed: 'N'
+
+
+[47] 🧩 TRANSFORMATION (smart rule) — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+Target: term_family_CD
+Raw: Set A to A --1A
+Parsed: 'A'
+
+
+[48] 🧩 TRANSFORMATION (smart rule) — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+Target: to_dt
+Raw: Set to '9999-12-31' and cast it as date
+Parsed: CAST('9999-12-31' AS DATE)
+
+
+[49] 🧩 TRANSFORMATION (smart rule) — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+Target: trm_prodct_id
+Raw: Set to 0
+Parsed: '0'
+
+
+[50] 🧩 TRANSFORMATION (smart rule) — 2025-10-24 03:26:04
+--------------------------------------------------------------------------------
+Target: varble_rate_id
+Raw: Set to 0
+Parsed: '0'
+
+
+[1] 🧩 JOIN NORMALIZATION — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.WASTE_SECURITY_CODE
+
+
+[2] 🧩 JOIN NORMALIZATION — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.WASTE_SECURITY_CODE
+
+
+[3] 🧩 JOIN NORMALIZATION — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.WASTE_SECURITY_CODE
+
+
+[4] 🧩 JOIN NORMALIZATION — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.WASTE_SECURITY_CODE
+
+
+[5] 🧩 JOIN NORMALIZATION — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.WASTE_SECURITY_CODE
+
+
+[6] 🧩 JOIN NORMALIZATION — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.WASTE_SECURITY_CODE
+
+
+[7] 🧩 JOIN NORMALIZATION — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.WASTE_SECURITY_CODE
+
+
+[8] 🧩 JOIN NORMALIZATION — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.WASTE_SECURITY_CODE
+
+
+[9] 🧩 JOIN NORMALIZATION — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.WASTE_SECURITY_CODE
+
+
+[10] 🧩 BUSINESS RULE EXTRACTION — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+Predicates Detected:
+  - TRIM(mas.SRSECCODE) <> ''
+  - mas.SRSTATUS = 'A'
+
+Notes Detected:
+  - -- TODO: Duplicates: enforce ROW_NUMBER() OVER (PARTITION BY mas.SRSECCODE ORDER BY <choose>) = 1
+  - -- NOTE: Evaluate rule -> reject the record if duplicate ossbr_2_1.SRSECCODE found and
+  - -- NOTE: Evaluate rule -> reject the record and
+  - -- NOTE: Exclusion rule -> 3) If ossbr_2_1.SRSTATUS <> 'A' (i.e. not active) exclude the record (no exception logging required)
+
+
+[11] 🧩 BUSINESS RULE WHERE BLOCK — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+-- TODO: Duplicates: enforce ROW_NUMBER() OVER (PARTITION BY mas.SRSECCODE ORDER BY <choose>) = 1
+  -- NOTE: Evaluate rule -> reject the record if duplicate ossbr_2_1.SRSECCODE found and
+  -- NOTE: Evaluate rule -> reject the record and
+  -- NOTE: Exclusion rule -> 3) If ossbr_2_1.SRSTATUS <> 'A' (i.e. not active) exclude the record (no exception logging required)
+  TRIM(mas.SRSECCODE) <> '' AND mas.SRSTATUS = 'A'
+
+
+[12] 🧩 BUSINESS RULE EXTRACTION — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+Predicates Detected:
+  - TRIM(mas.SRSECCODE) <> ''
+  - mas.SRSTATUS = 'A'
+
+Notes Detected:
+  - -- TODO: Duplicates: enforce ROW_NUMBER() OVER (PARTITION BY mas.SRSECCODE ORDER BY <choose>) = 1
+  - -- NOTE: Evaluate rule -> reject the record if duplicate ossbr_2_1.SRSECCODE found and
+  - -- NOTE: Evaluate rule -> reject the record and
+  - -- NOTE: Exclusion rule -> 3) If ossbr_2_1.SRSTATUS <> 'A' (i.e. not active) exclude the record (no exception logging required)
+
+
+[13] 🧩 BUSINESS RULE WHERE BLOCK — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+-- TODO: Duplicates: enforce ROW_NUMBER() OVER (PARTITION BY mas.SRSECCODE ORDER BY <choose>) = 1
+  -- NOTE: Evaluate rule -> reject the record if duplicate ossbr_2_1.SRSECCODE found and
+  -- NOTE: Evaluate rule -> reject the record and
+  -- NOTE: Exclusion rule -> 3) If ossbr_2_1.SRSTATUS <> 'A' (i.e. not active) exclude the record (no exception logging required)
+  TRIM(mas.SRSECCODE) <> '' AND mas.SRSTATUS = 'A'
+
+
+[14] 🧩 BUSINESS RULE EXTRACTION — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+Predicates Detected:
+  - TRIM(mas.SRSECCODE) <> ''
+  - mas.SRSTATUS = 'A'
+
+Notes Detected:
+  - -- TODO: Duplicates: enforce ROW_NUMBER() OVER (PARTITION BY mas.SRSECCODE ORDER BY <choose>) = 1
+  - -- NOTE: Evaluate rule -> reject the record if duplicate ossbr_2_1.SRSECCODE found and
+  - -- NOTE: Evaluate rule -> reject the record and
+  - -- NOTE: Exclusion rule -> 3) If ossbr_2_1.SRSTATUS <> 'A' (i.e. not active) exclude the record (no exception logging required)
+
+
+[15] 🧩 BUSINESS RULE WHERE BLOCK — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+-- TODO: Duplicates: enforce ROW_NUMBER() OVER (PARTITION BY mas.SRSECCODE ORDER BY <choose>) = 1
+  -- NOTE: Evaluate rule -> reject the record if duplicate ossbr_2_1.SRSECCODE found and
+  -- NOTE: Evaluate rule -> reject the record and
+  -- NOTE: Exclusion rule -> 3) If ossbr_2_1.SRSTATUS <> 'A' (i.e. not active) exclude the record (no exception logging required)
+  TRIM(mas.SRSECCODE) <> '' AND mas.SRSTATUS = 'A'
+
+
+[16] 🧩 TRANSFORMATION (smart rule) — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+Target: asset_liblty_CD
+Raw: Set to +00331 (Asset).
+Parsed: '+00331 (Asset).'
+
+
+[17] 🧩 TRANSFORMATION (smart rule) — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+Target: compnd_int_CD
+Raw: Set to -2 (No Source).
+Parsed: '-2 (No Source).'
+
+
+[18] 🧩 TRANSFORMATION (literal rule) — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+Target: curncy_CD
+Raw: CASE -- Check if SRCURRCODE is one of the non-ISO standard and obsolete codes 
+ WHEN mas.SRCURRCODE IN ('BEF', 'DEM', 'FRF', 'GRD', 'TEP', 'ITL','NLG','PTE') THEN '+00618* -- Other -- If no match found, default to +00616 (CAD) ELSE CASE -- If secrty_curncy_id is -00003 or -00004, set to +00616 (CAD) WHEN mas.secrty_curncy_id IN (-3,-4) THEN '+00616' -- Use standard code mapping based on SRCURRCODE ELSE COALESCE(get stndrd_id('EDW','EDW_CURNCY _CD, 'N', mas.secrty_curncy_id), '+00616' -- Default to CAD if no match found) END END AS CURNCY_CD FROM ossbr_2_1 mas
+Parsed: '+00616 (CAD) WHEN mas'
+
+
+[19] 🧩 TRANSFORMATION (complex rule) — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+Target: cusip_id
+Source: cusip
+Raw:
+CASE WHEN RTRIM(mas.SRCUSIPNBR)=  THEN '000000000' ELSE mas.SRCUSIPNBR END AS CUSIP_ID FROM ossbr_2_1 mas
+
+Parsed Core:
+CASE WHEN RTRIM(mas.SRCUSIPNBR)=  THEN '000000000' ELSE mas.SRCUSIPNBR END AS CUSIP_ID
+Trailing:
+-- Source context preserved: FROM ossbr_2_1 mas
+
+
+[20] 🧩 TRANSFORMATION (complex rule) — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+Target: erlcsh_eligbl_in
+Source: srctype
+Raw:
+CASE WHEN mas.SRSECTYPE = '210' THEN 'N' ELSE 'Y' END AS ERLCSH_ELIGBL_IN FROM ossbr_2_1 mas
+
+Parsed Core:
+CASE WHEN mas.SRSECTYPE = '210' THEN 'N' ELSE 'Y' END AS ERLCSH_ELIGBL_IN
+Trailing:
+-- Source context preserved: FROM ossbr_2_1 mas
+
+
+[21] 🧩 TRANSFORMATION (smart rule) — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+Target: final_offer_dt
+Raw: Set to NULL
+Parsed: NULL
+
+
+[22] 🧩 TRANSFORMATION (literal rule) — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+Target: first_offer_dt
+Raw: CASE -- Check if SBDSBDATE is a valid date and not equal to '0001-01-01', WHEN TRY_CAST(mas.SBDSBDATE AS DATE) IS NOT NULL AND mas.SBDSBDATE <> '0001-01-01' THEN mas.SBDSBDATE ELSE NULL --Set to NULL it the date is invalid or '0001-01-01' END AS FIRST_OFFER_DT FROM ossbr_2_1 mas
+Parsed: 'NULL it the date is invalid or '0001-01-01' END AS FIRST_OFFER_DT FROM ossbr_2_1 mas'
+
+
+[23] 🧩 TRANSFORMATION (smart rule) — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+Target: fis_paper_type_CD
+Raw: Set A to A --1A
+Parsed: 'A'
+
+
+[24] 🧩 TRANSFORMATION (smart rule) — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+Target: fis_secrty_id
+Raw: Set to 0
+Parsed: '0'
+
+
+[25] 🧩 TRANSFORMATION (complex rule) — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+Target: int_freq_CD
+Source: tantrum_family_CD
+Raw:
+CASE -- Check if tantrum_FAMLY_CD is +01309 (MMK) or +01310 (FIX) 
+ WHEN tantrum.INSTR_FAMILY_CD IN (*+01309*, '+01310') THEN COALESCE(get_stndrd _id('EDW', 'EDW_INT_FREQ_CD*', 'N', mas.SRPREQ),'-00001' -- Default to Not Applicable if no standard mapping is found 
+ ELSE '-00001' -- Not Applicable 
+ END AS INT_FREQ_CD FROM ossbr_2_1 mas LEFT JOIN tantrum tantrum ON mas.SRSECCODE = tantrum.SRSECCODE
+
+Parsed Core:
+CASE -- Check if tantrum_FAMLY_CD is +01309 (MMK) or +01310 (FIX) 
+ WHEN tantrum.INSTR_FAMILY_CD IN (*+01309*, '+01310') THEN COALESCE(get_stndrd _id('EDW', 'EDW_INT_FREQ_CD*', 'N', mas.SRPREQ),'-00001' -- Default to Not Applicable if no standard mapping is found 
+ ELSE '-00001' -- Not Applicable 
+ END AS INT_FREQ_CD
+Trailing:
+-- Source context preserved: FROM ossbr_2_1 mas LEFT JOIN tantrum tantrum ON mas.SRSECCODE = tantrum.SRSECCODE
+
+
+[26] 🧩 TRANSFORMATION (smart rule) — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+Target: int_rate_id
+Raw: Set to 0
+Parsed: '0'
+
+
+[27] 🧩 TRANSFORMATION (smart rule) — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+Target: int_relatn_CD
+Raw: Set to -2 (No Source).
+Parsed: '-2 (No Source).'
+
+
+[28] 🧩 TRANSFORMATION (complex rule) — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+Target: int_rt
+Source: interestrate
+Raw:
+CASE WHEN TRY_CAST(mas.SRPMTRATE AS FLAOT) IS NOT NULL AND mas.SRPMTRATE > 0 AND mas.SRPMTRATE <= 999.99999 THEN mas.SRPMTRATE ELSE NULL END AS INT_RT FROM ossbr_2_1 mas
+
+Parsed Core:
+CASE WHEN TRY_CAST(mas.SRPMTRATE AS FLAOT) IS NOT NULL AND mas.SRPMTRATE > 0 AND mas.SRPMTRATE <= 999.99999 THEN mas.SRPMTRATE ELSE NULL END AS INT_RT
+Trailing:
+-- Source context preserved: FROM ossbr_2_1 mas
+
+
+[29] 🧩 TRANSFORMATION (smart rule) — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+Target: issuer_org_id
+Raw: Set to 0
+Parsed: '0'
+
+
+[30] 🧩 TRANSFORMATION (smart rule) — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+Target: last_change_dt
+Raw: Set to etl.effective.start.date in the fromat yyyy-mm-dd
+Parsed: TO_DATE('"""${etl.effective.start.date}"""', 'yyyyMMddHHmmss')
+
+
+[31] 🧩 TRANSFORMATION (smart rule) — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+Target: lifecy_CD
+Raw: Set to +00114 (Active).
+Parsed: '+00114 (Active).'
+
+
+[32] 🧩 TRANSFORMATION (smart rule) — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+Target: load_ts
+Raw: set to current_timestamp()
+Parsed: CURRENT_TIMESTAMP()
+
+
+[33] 🧩 TRANSFORMATION (complex rule) — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+Target: mu_fund_family_CD
+Source: WASTE_SECURITY_CD
+Raw:
+CASE WHEN ref.sm_SECURITY_CODE IS NOT NULL AND LEFT(ref.SEND_CD, 3) = 'SBB' THEN CASE WHEN edx.MFIN_SEND_NUMBER IS NOT NULL THEN CASE WHEN edx.MFIN_ASSET_ORDER = 1 THEN +08830' -- MMK /n WHEN edx.MFIN_ASSET_ORDER = 2 THEN '+08831' -- PMMK /n WHEN edx.MFIN_ASSET_ORDER = 3 THEN +08832' -- ING /n WHEN edx.MFIN_ASSET_ORDER = 4 THEN '+08833' -- BAL /n WHEN edx.MFIN_ASSET_ORDER = 5 THEN +08834' -- INX /n WHEN edx.MFIN_ASSET_ORDER = 6 THEN '+08835' -- CDNEQ /n WHEN edx.MFIN_ASSET_ORDER = 7 THEN '+08836' -- USEQ /n WHEN edx.MFIN_ASSET_ORDER = 8 THEN '+08837' -- SEC /n WHEN edx.MFIN_ASSET_ORDER = 9 THEN '+08838' -- GLO /n WHEN edx.MFIN_ASSET_ORDER = 10 THEN '+08839' -- MAPM /n WHEN edx.MFIN_ASSET_ORDER = 11 THEN '+08840' -- MAP /n WHEN edx.MFIN_ASSET_ORDER - 12 THEN '+08841' -- MAP /n WHEN edx.MFIN_ASSET_ORDER - 13 THEN +08842' -- GIC /n WHEN edx.MFIN_ASSET_ORDER = 14 THEN +12553' -- COMFORT /n WHEN edx.MFIN_ASSET_ORDER = 15 THEN +12554* -- ADVANTAGE /n WHEN edx.MFIN_ASSET_ORDER = 16 THEN '+12559' -- CORPORATE /n ELSE '-00004' -- Invalid /n END ELSE -00001' -- Not Applicable /n END ELSE -00001' -- Not Applicable /n END AS mu_fund_FAMILY_CD FROM ossbr_2_1 mas LEFT JOIN GLSREF ref ON mas.SRSECCODE = ref.sm_SECURITY_CODE LEFT JOIN MFIN ed ON SUBSTRING (ref.SEND_CD, 4, 5) = edx.MFIN_SEND_NUMBER
+
+Parsed Core:
+CASE WHEN ref.sm_SECURITY_CODE IS NOT NULL AND LEFT(ref.SEND_CD, 3) = 'SBB' THEN CASE WHEN edx.MFIN_SEND_NUMBER IS NOT NULL THEN CASE WHEN edx.MFIN_ASSET_ORDER = 1 THEN +08830' -- MMK /n WHEN edx.MFIN_ASSET_ORDER = 2 THEN '+08831' -- PMMK /n WHEN edx.MFIN_ASSET_ORDER = 3 THEN +08832' -- ING /n WHEN edx.MFIN_ASSET_ORDER = 4 THEN '+08833' -- BAL /n WHEN edx.MFIN_ASSET_ORDER = 5 THEN +08834' -- INX /n WHEN edx.MFIN_ASSET_ORDER = 6 THEN '+08835' -- CDNEQ /n WHEN edx.MFIN_ASSET_ORDER = 7 THEN '+08836' -- USEQ /n WHEN edx.MFIN_ASSET_ORDER = 8 THEN '+08837' -- SEC /n WHEN edx.MFIN_ASSET_ORDER = 9 THEN '+08838' -- GLO /n WHEN edx.MFIN_ASSET_ORDER = 10 THEN '+08839' -- MAPM /n WHEN edx.MFIN_ASSET_ORDER = 11 THEN '+08840' -- MAP /n WHEN edx.MFIN_ASSET_ORDER - 12 THEN '+08841' -- MAP /n WHEN edx.MFIN_ASSET_ORDER - 13 THEN +08842' -- GIC /n WHEN edx.MFIN_ASSET_ORDER = 14 THEN +12553' -- COMFORT /n WHEN edx.MFIN_ASSET_ORDER = 15 THEN +12554* -- ADVANTAGE /n WHEN edx.MFIN_ASSET_ORDER = 16 THEN '+12559' -- CORPORATE /n ELSE '-00004' -- Invalid /n END ELSE -00001' -- Not Applicable /n END ELSE -00001' -- Not Applicable /n END AS mu_fund_FAMILY_CD
+Trailing:
+-- Source context preserved: FROM ossbr_2_1 mas LEFT JOIN GLSREF ref ON mas.SRSECCODE = ref.sm_SECURITY_CODE LEFT JOIN MFIN ed ON SUBSTRING (ref.SEND_CD, 4, 5) = edx.MFIN_SEND_NUMBER
+
+
+[34] 🧩 TRANSFORMATION (complex rule) — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+Target: mu_fund_id
+Source: WASTE_SECURITY_CD
+Raw:
+CASE WHEN ref.sm_SECURITY_CODE IS NOT NULL THEN ref.SEND_CD ELSE '00000000' END AS mu_fund_ID FROM ossbr_2_1 mas LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.sm_SECURITY_CODE
+
+Parsed Core:
+CASE WHEN ref.sm_SECURITY_CODE IS NOT NULL THEN ref.SEND_CD ELSE '00000000' END AS mu_fund_ID
+Trailing:
+-- Source context preserved: FROM ossbr_2_1 mas LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.sm_SECURITY_CODE
+
+
+[35] 🧩 TRANSFORMATION (smart rule) — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+Target: row_exclsn_dt
+Raw: Set to NULL
+Parsed: NULL
+
+
+[36] 🧩 TRANSFORMATION (complex rule) — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+Target: secrty_class_id
+Source: borclass
+Raw:
+CASE WHEN TRY_CAST(mas.SRSECCLAS AS INT) IS NOT NULL THEN mas.SRSECCLAS ELSE '0' END AS SECRTY_CLASS_ID FROM ossbr_2_1 mas
+
+Parsed Core:
+CASE WHEN TRY_CAST(mas.SRSECCLAS AS INT) IS NOT NULL THEN mas.SRSECCLAS ELSE '0' END AS SECRTY_CLASS_ID
+Trailing:
+-- Source context preserved: FROM ossbr_2_1 mas
+
+
+[37] 🧩 TRANSFORMATION (smart rule) — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+Target: secrty_view_CD
+Raw: Set to +01342 (DB).
+Parsed: '+01342 (DB).'
+
+
+[38] 🧩 TRANSFORMATION (smart rule) — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+Target: sm_secrty_id
+Raw: Straight move (if date field then set Fromat source date as YYYY-MM-DD)
+Parsed: TO_DATE({source_column}, 'YYYY-MM-DD')
+
+
+[39] 🧩 TRANSFORMATION (complex rule) — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+Target: sm_secrty_type_id
+Source: srctype
+Raw:
+CASE WHEN TRY_CAST(mas.SRSECTYPE AS INT) IS NOT NULL THEN mas.SRSECTYPE ELSE '+00000' END AS sm.SECRTY_TYPE_ID FROM ossbr_2_1 mas
+
+Parsed Core:
+CASE WHEN TRY_CAST(mas.SRSECTYPE AS INT) IS NOT NULL THEN mas.SRSECTYPE ELSE '+00000' END AS sm.SECRTY_TYPE_ID
+Trailing:
+-- Source context preserved: FROM ossbr_2_1 mas
+
+
+[40] 🧩 TRANSFORMATION (smart rule) — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+Target: source_appl_CD
+Raw: Set to +00239 (GLS)
+Parsed: '+00239 (GLS)'
+
+
+[41] 🧩 TRANSFORMATION (default passthrough) — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+Target: sumary_combin_id
+Expr: NULL
+
+
+[42] 🧩 TRANSFORMATION (complex rule) — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+Target: tantrum_family_CD
+Source: srctype
+Raw:
+CASE WHEN ref.sm_SECURITY_CODE IS NOT NULL THEN CASE WHEN mas.SRSECTYPE IN ('380','331') THEN '+01313' ELSE '+01316' END ELSE CASE WHEN mas.SRSECTYPE = '220' THEN '+01312' WHEN mas.SRSECTYPE IN ('315','600','520','420','310','330','510') THEN '+01314'  WHEN mas.SRSECTYPE IN ('551','553','555','559','567','550','556','557','570','581','554','558','568','569','573','562','530') THEN '+01315' WHEN mas.SRSECTYPE IN ('210','230','240') THEN '+01309' WHEN mas.SRSECTYPE IN ('263','265','275','260','261','270','262','276','290','295') THEN '+01310' ELSE '+01316'  END END AS tantrum_family_cd LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.sm_SECURITY_CODE
+
+Parsed Core:
+CASE WHEN ref.sm_SECURITY_CODE IS NOT NULL THEN CASE WHEN mas.SRSECTYPE IN ('380','331') THEN '+01313' ELSE '+01316' END ELSE CASE WHEN mas.SRSECTYPE = '220' THEN '+01312' WHEN mas.SRSECTYPE IN ('315','600','520','420','310','330','510') THEN '+01314'  WHEN mas.SRSECTYPE IN ('551','553','555','559','567','550','556','557','570','581','554','558','568','569','573','562','530') THEN '+01315' WHEN mas.SRSECTYPE IN ('210','230','240') THEN '+01309' WHEN mas.SRSECTYPE IN ('263','265','275','260','261','270','262','276','290','295') THEN '+01310' ELSE '+01316'  END END AS tantrum_family_cd LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.sm_SECURITY_CODE
+Trailing:
+(none)
+
+
+[43] 🧩 TRANSFORMATION (complex rule) — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+Target: tantrum_issued_in
+Source: shortdescription
+Raw:
+CASE -- Check if ossbr_2_1.SRSECCODE matches GLSXREF.sm_SECURITY_CODE 
+ WHEN ref.sm_SECURITY_CODE IS NOT NULL AND LEFT(ref.SEND_CD, 3) IN ('SBM', 'SBG', 'SBS','SBB', 'SBC') THEN 'Y' -- Match found and SEND_CD starts with specified values WHEN LEFT(mas.SRSHSBESE, 2) = 'SB' THEN 'Y' -- First two characters of SRSHSBESE are 'SB' ELSE 'N' -- Default to 'N' END AS tantrum_issued_in FROM ossbr_2_1 mas LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.sm_SECURITY_CODE
+
+Parsed Core:
+CASE -- Check if ossbr_2_1.SRSECCODE matches GLSXREF.sm_SECURITY_CODE 
+ WHEN ref.sm_SECURITY_CODE IS NOT NULL AND LEFT(ref.SEND_CD, 3) IN ('SBM', 'SBG', 'SBS','SBB', 'SBC') THEN 'Y' -- Match found and SEND_CD starts with specified values WHEN LEFT(mas.SRSHSBESE, 2) = 'SB' THEN 'Y' -- First two characters of SRSHSBESE are 'SB' ELSE 'N' -- Default to 'N' END AS tantrum_issued_in
+Trailing:
+-- Source context preserved: FROM ossbr_2_1 mas LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.sm_SECURITY_CODE
+
+
+[44] 🧩 TRANSFORMATION (complex rule) — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+Target: tantrum_na
+Source: shortdescription
+Raw:
+CASE WHEN ref.sm_SECURITY_CODE IS NOT NULL THEN RTRIM(ref.FUND_DESC) ELSE RTRIM(mas.SRSHSBESE)
+
+Parsed Core:
+CASE WHEN ref.sm_SECURITY_CODE IS NOT NULL THEN RTRIM(ref.FUND_DESC) ELSE RTRIM(mas.SRSHSBESE)
+Trailing:
+(none)
+
+
+[45] 🧩 TRANSFORMATION (complex rule) — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+Target: tantrumid
+Source: SEND_CD
+Raw:
+CASE
+  WHEN LEFT(GLSXREF.SEND_CD, 3) = 'SBB' THEN
+    CASE
+      WHEN SUBSTRING(GLSXREF.SEND_CD, 4, 5) = MFSPRIC.PRC_DTL_SEND_NUM THEN NULL
+      ELSE
+        CASE
+          WHEN SUBSTRING(GLSXREF.SEND_CD, 4, 3) LIKE '[0-9]%' AND SUBSTRING(GLSXREF.SEND_CD, 7, 2) = '*' THEN CONCAT(230000000000, SUBSTRING(GLSXREF.SEND_CD, 4, 3))
+          WHEN LEN(TRIM(SUBSTRING(GLSXREF.SEND_CD, 4, 5))) > 0 THEN CONCAT(STRING_AGG(FORMAT(ASCII(SUBSTRING(GLSXREF.SEND_CD, 4, 1)), '00')), '000')
+          ELSE CONCAT('23000', STRING_AGG(FORMAT(ASCII(SUBSTRING(GLSXREF.SEND_CD, 4, 1)), '00')))
+        END
+    END
+  ELSE CONCAT('500', STRING_AGG(FORMAT(ASCII(ossbr_2_1.SRSECCODE), '00')))
+END AS tantrum_id
+FROM ossbr_2_1
+LEFT JOIN GLSXREF ON ossbr_2_1.SRSECCODE = GLSXREF.sm_SECURITY_CODE
+LEFT JOIN MFSPRIC ON SUBSTRING(GLSXREF.SEND_CD, 4, 5) = MFSPRIC.PRC_DTL_SEND_NUM
+
+Parsed Core:
+CASE
+  WHEN LEFT(GLSXREF.SEND_CD, 3) = 'SBB' THEN
+    CASE
+      WHEN SUBSTRING(GLSXREF.SEND_CD, 4, 5) = MFSPRIC.PRC_DTL_SEND_NUM THEN NULL
+      ELSE
+        CASE
+          WHEN SUBSTRING(GLSXREF.SEND_CD, 4, 3) LIKE '[0-9]%' AND SUBSTRING(GLSXREF.SEND_CD, 7, 2) = '*' THEN CONCAT(230000000000, SUBSTRING(GLSXREF.SEND_CD, 4, 3))
+          WHEN LEN(TRIM(SUBSTRING(GLSXREF.SEND_CD, 4, 5))) > 0 THEN CONCAT(STRING_AGG(FORMAT(ASCII(SUBSTRING(GLSXREF.SEND_CD, 4, 1)), '00')), '000')
+          ELSE CONCAT('23000', STRING_AGG(FORMAT(ASCII(SUBSTRING(GLSXREF.SEND_CD, 4, 1)), '00')))
+        END
+    END
+  ELSE CONCAT('500', STRING_AGG(FORMAT(ASCII(ossbr_2_1.SRSECCODE), '00')))
+END AS tantrum_id
+Trailing:
+-- Source context preserved: FROM ossbr_2_1 LEFT JOIN GLSXREF ON ossbr_2_1.SRSECCODE = GLSXREF.sm_SECURITY_CODE LEFT JOIN MFSPRIC ON SUBSTRING(GLSXREF.SEND_CD, 4, 5) = MFSPRIC.PRC_DTL_SEND_NUM
+
+
+[46] 🧩 TRANSFORMATION (smart rule) — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+Target: tct_issue_in
+Raw: Set to 'N'
+Parsed: 'N'
+
+
+[47] 🧩 TRANSFORMATION (smart rule) — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+Target: term_family_CD
+Raw: Set A to A --1A
+Parsed: 'A'
+
+
+[48] 🧩 TRANSFORMATION (smart rule) — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+Target: to_dt
+Raw: Set to '9999-12-31' and cast it as date
+Parsed: CAST('9999-12-31' AS DATE)
+
+
+[49] 🧩 TRANSFORMATION (smart rule) — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+Target: trm_prodct_id
+Raw: Set to 0
+Parsed: '0'
+
+
+[50] 🧩 TRANSFORMATION (smart rule) — 2025-10-24 03:38:03
+--------------------------------------------------------------------------------
+Target: varble_rate_id
+Raw: Set to 0
+Parsed: '0'
+
