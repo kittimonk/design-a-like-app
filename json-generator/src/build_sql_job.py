@@ -220,9 +220,9 @@ def build_final_select(df: pd.DataFrame) -> Tuple[str, List[Dict[str, str]]]:
         if "tgt_datatype" in group.columns and not group["tgt_datatype"].isnull().all():
             tgt_dtype = group["tgt_datatype"].iloc[0]
 
-         expr, trailing_comment = transformation_expression(
-         raw_trans, target_col=tgt, src_col=src_col, target_datatype=tgt_dtype
-         )
+        expr, trailing_comment = transformation_expression(
+            raw_trans, target_col=tgt, src_col=src_col, target_datatype=tgt_dtype
+        )
 
         # Expand placeholders from parse_set_rule results
         if "{source_column}" in expr:
