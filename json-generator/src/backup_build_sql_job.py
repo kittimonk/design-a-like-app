@@ -223,6 +223,16 @@ def build_final_select(df: pd.DataFrame) -> Tuple[str, List[Dict[str, str]]]:
             raw_trans, target_col=tgt, src_col=src_col, target_datatype=tgt_dtype
         )
 
+        # Handle numeric literal placeholders coming from parse_set_rule()
+        if expr.startswith("{numeric_literal:"):
+            # Extract numeric part safely
+            val = re.sub(r"[{}a-zA-Z_:]", "", expr).strip()
+            if val:
+                expr = f"COALESCE({val}, NULL)"
+            if tgt_dtype:
+                inferred = _infer_datatype_from_value(val, tgt_dtype)
+                expr = _cast_to_datatype(expr, inferred)
+
         # Expand placeholders (e.g., {source_column})
         if "{source_column}" in expr:
             expr = expr.replace("{source_column}", src_col or "NULL")
@@ -233,6 +243,19 @@ def build_final_select(df: pd.DataFrame) -> Tuple[str, List[Dict[str, str]]]:
             expr = f"'{_strip_trailing_notes(expr_clean)}'"
         elif re.fullmatch(r"[-+]?\d+(\.\d+)?", expr.strip().strip("'")):
             expr = _strip_trailing_notes(expr.strip().strip("'"))
+        
+        # 🧩 Patch: force-cast simple literals (numbers, quoted text, NULL)
+        # even if stripped version no longer triggers _needs_cast
+        if tgt_dtype and re.fullmatch(r"[-+]?\d+(\.\d+)?", expr.strip()):
+            inferred = _infer_datatype_from_value(expr, tgt_dtype)
+            expr = _cast_to_datatype(expr, inferred)
+        elif tgt_dtype and re.fullmatch(r"'[^']*'", expr.strip()):
+            inferred = _infer_datatype_from_value(expr, tgt_dtype)
+            expr = _cast_to_datatype(expr, inferred)
+        elif tgt_dtype and expr.strip().upper() == "NULL":
+            inferred = _infer_datatype_from_value(expr, tgt_dtype)
+            expr = _cast_to_datatype(expr, inferred)
+
 
         # Dequote whole CASE/SELECT expressions
         if re.match(r"^['\"]\s*(CASE|SELECT)\b", expr, re.I):
@@ -250,10 +273,20 @@ def build_final_select(df: pd.DataFrame) -> Tuple[str, List[Dict[str, str]]]:
             expr = re.sub(r"(?i)\bend\b", r"\n  END", expr)
 
         # 🟢 Enforce datatype-aware CAST for all literals/NULLs (fix reintroduced)
-        # 🟢 Enforce datatype-aware CAST for literals and NULLs
-        if tgt_dtype and _needs_cast(expr):
-             inferred = _infer_datatype_from_value(expr, tgt_dtype)
-             expr = _cast_to_datatype(expr, inferred)
+        # 🟢 Enforce datatype-aware CAST for all simple literals and NULLs
+        if tgt_dtype:
+            if _needs_cast(expr):
+                inferred = _infer_datatype_from_value(expr, tgt_dtype)
+                expr = _cast_to_datatype(expr, inferred)
+            elif re.fullmatch(r"[-+]?\d+(\.\d+)?", expr.strip()) or expr.strip().upper() == "NULL":
+                # Handle plain numerics and NULL even if _needs_cast didn't trigger
+                inferred = _infer_datatype_from_value(expr, tgt_dtype)
+                expr = _cast_to_datatype(expr, inferred)
+            elif re.fullmatch(r"'[^']*'", expr.strip()):
+                # Handle quoted strings separately (strip trailing notes already done)
+                inferred = _infer_datatype_from_value(expr, tgt_dtype)
+                expr = _cast_to_datatype(expr, inferred)
+
 
         # Avoid duplicate aliasing
         if not re.search(r"(?i)\bas\s+\w+\b\s*$", expr.strip()):

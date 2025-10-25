@@ -2,4 +2,3 @@ __pycache__/
 *.pyc
 .venv/
 venv/
-generated_jobs_full_run_v1/

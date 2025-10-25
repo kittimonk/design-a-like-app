@@ -4,7 +4,7 @@ from typing import List, Tuple, Optional
 
 # ---------- Debug hooks (kept light; file-writer lives in build script) ----------
 DEBUG_JOINS = False
-DEBUG_TRANSFORMATIONS = False
+DEBUG_TRANSFORMATIONS = True
 
 def _debug_log(title: str, block: str):
     # build_sql_job.py writes to file; here we keep it minimal for import safety
@@ -141,52 +141,41 @@ def _infer_datatype_from_value(value: str, explicit_type: Optional[str]) -> str:
     return "STRING"
 
 def _cast_to_datatype(expr: str, target_datatype: str, default_val: Optional[str] = None) -> str:
-    """Return expr casted to the given type. Handles NULL specially and keeps function calls unquoted.
-       Patch 7 extension: optional COALESCE(expr, default_val) for default-aware casting.
+    """
+    Return expr casted to the given type. Handles NULL specially and keeps function calls unquoted.
+    Enhanced for COALESCE-aware casting.
     """
     if not target_datatype:
         return expr
     dt = target_datatype.strip().upper()
+    e = expr.strip()
 
-    # 🟢 NEW: apply COALESCE default if provided
+    # Apply COALESCE default if provided
     if default_val and default_val.strip() and default_val.strip().upper() != "NULL":
-        expr = f"COALESCE({expr}, {default_val})"
+        e = f"COALESCE({e}, {default_val.strip()})"
 
-    # NULL casting
-    if expr.strip().upper() == "NULL":
-        if "DECIMAL" in dt or "NUMERIC" in dt:
-            return f"CAST(NULL AS {dt})"
-        if any(t in dt for t in ["BIGINT", "INT", "INTEGER", "SMALLINT"]):
-            return f"CAST(NULL AS {dt})"
-        if any(t in dt for t in ["DATE", "TIMESTAMP"]):
-            return f"CAST(NULL AS {dt})"
+    # Handle NULL directly
+    if e.upper() == "NULL":
         return f"CAST(NULL AS {dt})"
 
-    # Already function-like (TO_DATE, CURRENT_TIMESTAMP, CASE ...)
-    if re.match(r"(?i)^\s*(TO_DATE|DATE|CURRENT_TIMESTAMP|CASE|COALESCE|CAST)\b", expr.strip(), re.I):
-        return f"CAST({expr} AS {dt})" if ("DECIMAL" in dt or "NUMERIC" in dt or "BIGINT" in dt or "INT" in dt) else expr
+    # Avoid re-casting structured expressions (CASE, TO_DATE, CAST)
+    if re.match(r"(?i)^(CASE|CAST|TO_DATE|COALESCE|CURRENT_TIMESTAMP)\b", e):
+        return e
 
-    # simple numeric literals
-    if re.fullmatch(r"[-+]?\d+(\.\d+)?", expr.strip().strip("'")):
-        lit = expr.strip().strip("'")
-        if "DECIMAL" in dt or "NUMERIC" in dt:
-            return f"CAST({lit} AS {dt})"
-        if any(t in dt for t in ["BIGINT", "INT", "INTEGER", "SMALLINT"]):
-            return f"CAST({lit} AS {dt})"
-        # fall back to string for other types
-        return f"CAST('{lit}' AS {dt})"
+    # Numeric literals
+    if re.fullmatch(r"[-+]?\d+(\.\d+)?", e.strip("'")):
+        val = e.strip("'")
+        return f"CAST({val} AS {dt})"
 
-    # quoted text literal
-    if re.fullmatch(r"'[^']*'", expr.strip()):
-        if "DECIMAL" in dt or "NUMERIC" in dt or "BIGINT" in dt or "INT" in dt:
-            # try to parse number inside quotes
-            inner = expr.strip().strip("'")
-            if re.fullmatch(r"[-+]?\d+(\.\d+)?", inner):
-                return f"CAST({inner} AS {dt})"
-        return f"CAST({expr} AS {dt})"
 
-    # default
-    return f"CAST({expr} AS {dt})" if ("DECIMAL" in dt or "NUMERIC" in dt or "BIGINT" in dt or "INT" in dt) else expr
+    # Quoted string
+    if re.fullmatch(r"'[^']*'", e):
+        inner = e.strip("'")
+        if re.fullmatch(r"[-+]?\d+(\.\d+)?", inner):
+            return f"CAST({inner} AS {dt})"
+        return f"CAST({e} AS {dt})"
+
+    return f"CAST({e} AS {dt})"
 
 # ---------- Utility: determine when to CAST ----------
 def _needs_cast(expr: str) -> bool:

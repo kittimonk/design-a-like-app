@@ -11,7 +11,7 @@ from rule_utils import (
 )
 
 # Toggle these if you want more verbose debug logs written to file
-DEBUG_TRANSFORMATIONS = False
+DEBUG_TRANSFORMATIONS = True
 DEBUG_JOINS = False
 DEBUG_OUTPUT_DIR = "debug_outputs"
 
@@ -37,8 +37,11 @@ def load_mapping(csv_path: str) -> pd.DataFrame:
         "Table/File Name * (auto populate)": "src_table",
         "Column Name * (auto populate)": "src_column",
         "Table/File Name * (auto populate)__1": "tgt_table",
+        "Table/File Name * (auto populate).1": "tgt_table",
         "Column/Field Name * (auto populate)": "tgt_column",
+        # Support both possible names for target datatype
         "Data Type * (auto populate)__1": "tgt_datatype",
+        "Data Type * (auto populate).1": "tgt_datatype",
         "Business Rule (auto populate)": "business_rule",
         "Join Clause (auto populate)": "join_clause",
         "Transformation Rule/Logic (auto populate)": "transformation_rule",
@@ -198,7 +201,13 @@ def build_final_select(df: pd.DataFrame) -> Tuple[str, List[Dict[str, str]]]:
 
     for tgt_lower, group in grouped:
         tgt = group["tgt_column"].iloc[0]
-        tgt_dtype = (group["tgt_datatype"].iloc[0] if "tgt_datatype" in group else "").strip()
+
+        # Safely extract target datatype and normalize
+        tgt_dtype = None
+        if "tgt_datatype" in group.columns and not group["tgt_datatype"].isnull().all():
+            tgt_dtype = str(group["tgt_datatype"].iloc[0] or "").upper().strip()
+            if tgt_dtype in ("INT", "INT64", "INTEGER"):
+                tgt_dtype = "BIGINT"
 
         # Combine multiple rows for same target
         unique_rules = list({(r or "").strip() for r in group.get("transformation_rule", []) if str(r).strip()})
@@ -212,51 +221,54 @@ def build_final_select(df: pd.DataFrame) -> Tuple[str, List[Dict[str, str]]]:
             merged_note = f"-- NOTE: merged {len(group)} duplicate definitions for target column '{tgt}'"
 
         raw_trans = unique_rules[0] if unique_rules else ""
-        src_col = unique_sources[0] if unique_sources else ""
+        src_col   = unique_sources[0] if unique_sources else ""
 
-        # Safely extract target datatype
-        tgt_dtype = None
-        if "tgt_datatype" in group.columns and not group["tgt_datatype"].isnull().all():
-            tgt_dtype = group["tgt_datatype"].iloc[0]
-
+        # Build/parse expression (preserving CASE and FROM)
         expr, trailing_comment = transformation_expression(
             raw_trans, target_col=tgt, src_col=src_col, target_datatype=tgt_dtype
         )
 
-        # Expand placeholders (e.g., {source_column})
+        # Expand placeholders from parse_set_rule (e.g., {source_column})
         if "{source_column}" in expr:
             expr = expr.replace("{source_column}", src_col or "NULL")
 
-        # Cleanup trailing notes from literals
+        # Strip trailing developer notes from simple literals (e.g., '+00331 (Asset).' → '331')
         if re.fullmatch(r"'[^']*'", expr.strip()):
-            expr_clean = expr.strip().strip("'")
-            expr = f"'{_strip_trailing_notes(expr_clean)}'"
+            inner = expr.strip().strip("'")
+            expr = f"'{_strip_trailing_notes(inner)}'"
         elif re.fullmatch(r"[-+]?\d+(\.\d+)?", expr.strip().strip("'")):
             expr = _strip_trailing_notes(expr.strip().strip("'"))
 
-        # Dequote whole CASE/SELECT expressions
+        # Dequote whole CASE/SELECT expressions mistakenly quoted
         if re.match(r"^['\"]\s*(CASE|SELECT)\b", expr, re.I):
             expr = expr.strip().strip("'\"")
 
         # Remove trailing semicolons
         expr = re.sub(r";+$", "", expr).strip()
 
-        # Optional: improve CASE readability
-        if expr.strip().upper().startswith("CASE"):
+        # Optional: improve CASE readability (indent WHEN/END)
+        if expr.upper().startswith("CASE"):
             expr = re.sub(r"(?i)\b(case)\b", r"\1\n  ", expr)
             expr = re.sub(r"(?i)\b(when)\b", r"\n    \1", expr)
             expr = re.sub(r"(?i)\b(then)\b", r"\n      \1", expr)
             expr = re.sub(r"(?i)\b(else)\b", r"\n    \1", expr)
             expr = re.sub(r"(?i)\bend\b", r"\n  END", expr)
 
-        # 🟢 Enforce datatype-aware CAST for all literals/NULLs (fix reintroduced)
-        # 🟢 Enforce datatype-aware CAST for literals and NULLs
-        if tgt_dtype and _needs_cast(expr):
-             inferred = _infer_datatype_from_value(expr, tgt_dtype)
-             expr = _cast_to_datatype(expr, inferred)
+        # ------------------------------------------------------------------
+        # FINAL ENFORCEMENT: cast literals/NULLs to the target datatype
+        # (This happens *after* all cleanup and right before we add the alias)
+        # ------------------------------------------------------------------
+        if tgt_dtype:
+            lit = expr.strip()
+            is_null    = (lit.upper() == "NULL")
+            is_quoted  = bool(re.fullmatch(r"'[^']*'", lit))
+            is_numeric = bool(re.fullmatch(r"[-+]?\d+(\.\d+)?", lit.strip("'")))
+            if is_null or is_quoted or is_numeric:
+                inferred = _infer_datatype_from_value(lit, tgt_dtype)
+                expr = _cast_to_datatype(lit, inferred)
 
-        # Avoid duplicate aliasing
-        if not re.search(r"(?i)\bas\s+\w+\b\s*$", expr.strip()):
+        # Avoid duplicate aliasing (if expr already ends with AS something)
+        if not re.search(r"(?i)\bas\s+\w+\b\s*$", expr):
             select_line = f"    {expr} AS {_sanitize_target_alias(tgt)}"
         else:
             select_line = f"    {expr}"
@@ -279,6 +291,7 @@ def build_final_select(df: pd.DataFrame) -> Tuple[str, List[Dict[str, str]]]:
         })
 
     return "SELECT\n" + ",\n".join(lines) + "\nFROM step1", audit_rows
+
 
 def build_sql_cte_pipeline(df: pd.DataFrame, target_table: str) -> Tuple[str, List[Dict[str, str]]]:
     sources = infer_sources(df)
