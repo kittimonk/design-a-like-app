@@ -123,7 +123,7 @@ SELECT
       THEN '+12559' -- CORPORATE /n 
     ELSE '-00004' -- Invalid /n 
   END 
-    ELSE -'00001' -- Not Applicable /n 
+    ELSE '-00001' -- Not Applicable /n 
   END 
     ELSE '-00001' -- Not Applicable /n 
   END AS mu_fund_FAMILY_CD
@@ -194,9 +194,7 @@ SELECT
    
     WHEN ref.sm_SECURITY_CODE IS NOT NULL 
       THEN RTRIM(ref.FUND_DESC) 
-    ELSE RTRIM(mas.SRSHSBESE) 
-  END AS tantrum_na
-    -- Source context preserved: FROM ossbr_2_1 mas LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.sm_SECURITY_CODE,
+    ELSE RTRIM(mas.SRSHSBESE) AS tantrum_na,
     -- NOTE: merged 3 duplicate definitions for target column 'tantrumid'
     CASE
   
