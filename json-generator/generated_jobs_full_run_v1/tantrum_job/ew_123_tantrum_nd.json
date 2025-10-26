@@ -1,7 +1,7 @@
 {
   "source malcode": "ND",
   "source basepath": "ND",
-  "comment": "Auto-generated job for tantrum from mapping CSV.",
+  "comment": "This job is responsible for loading data into tantrum from ND source list - GLSXREF, MFIN, MFSPRIC, ossbr_2_1, tantrum",
   "modules": {
     "data_sourcing_process": {
       "options": {
@@ -47,14 +47,14 @@
         "path": "${adls.source.root}/tantrum"
       }
     },
-    "data_transformation": {
-      "sql": "@json-generator/generated_jobs_full_run_v1/tantrum_job/tantrum_pipeline.sql",
+    "dt_tantrum_nd": {
+      "sql": "@json-generator/generated_jobs_full_run_v1/tantrum_job/tantrum_nd.sql",
       "loggable": true,
       "options": {
-        "module": "data_transformation",
+        "module": "dt_tantrum_nd",
         "method": "process"
       },
-      "name": "dt_tantrum"
+      "name": "dt_tantrum_nd"
     },
     "load_enrich_process": {
       "options": {
@@ -62,8 +62,8 @@
         "method": "process"
       },
       "loggable": true,
-      "sql": "SELECT * FROM dt_tantrum",
-      "target-path": "${adls.stage.root}/${source malcode}",
+      "sql": "SELECT * FROM dt_tantrum_nd",
+      "target-path": "${adls.stage.root}/ND",
       "mode-of-write": "replace_partition",
       "keys": "",
       "cdc-flag": false,

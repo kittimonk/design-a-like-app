@@ -371,8 +371,23 @@ def normalize_join(join_text: str) -> str:
     s = re.sub(r"(?i)\bjoin\b", "JOIN", s)
     s = re.sub(r"[;\n]+", " ", s)
 
-    # 🩹 Fix: Remove concatenated or duplicate JOIN fragments (e.g. two JOINs stuck together)
-    s = re.sub(r"(LEFT\s+JOIN\s+[A-Za-z0-9_]+\s+[A-Za-z0-9_]+\s+)+", " ", s, flags=re.I)
+    # ---- Strip any stray FROM ... fragments (should not live inside JOIN text)
+    # keep only "<JOIN ... ON <cond>>" and drop accidental trailing FROM clauses
+    s = re.sub(r"\s+FROM\s+[A-Za-z0-9_\. ]+(?=(\s+(LEFT|INNER|RIGHT|FULL)\s+JOIN\b|\s*$))", "", s, flags=re.I)
+
+    # ---- Fix odd "JOIN <A> WITH <B> <alias>" phrasing → "LEFT JOIN <B> <alias>"
+    s = re.sub(r"(?i)\bjoin\s+\S+\s+with\s+([A-Za-z0-9_]+)\s+([A-Za-z0-9_]+)",
+               r"LEFT JOIN \1 \2", s)
+
+    # ---- If multiple JOIN blocks got glued together, keep the last table+alias before ON
+    m = re.search(r"LEFT JOIN\s+([A-Za-z0-9_]+(?:\s+[A-Za-z0-9_]+)*)\s+ON\s+(.*)", s, re.I)
+    if m:
+        table_block = m.group(1)
+        cond = m.group(2)
+        parts = table_block.split()
+        if len(parts) > 2:
+            table_block = " ".join(parts[-2:])
+        s = f"LEFT JOIN {table_block} ON {cond}"
 
     # 1️⃣  Default JOIN type enforcement — use LEFT JOIN unless specified
     if not re.search(r"(?i)\b(left|right|full)\s+join\b", s):
