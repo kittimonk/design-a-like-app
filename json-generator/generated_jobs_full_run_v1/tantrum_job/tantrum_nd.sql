@@ -1,21 +1,21 @@
 WITH
-src AS (SELECT * FROM GLSXREF src),
-src1 AS (SELECT * FROM MFIN src1),
-src2 AS (SELECT * FROM MFSPRIC src2),
 ossbr AS (SELECT * FROM ossbr_2_1 ossbr),
+src AS (SELECT * FROM GLSXREF src),
+src1 AS (SELECT * FROM MFSPRIC src1),
+src2 AS (SELECT * FROM src2),
 src3 AS (SELECT * FROM tantrum src3),
+src4 AS (SELECT * FROM MFIN src4),
 step1 AS (
- SELECT ossbr.*
- FROM ossbr_2_1 ossbr
- LEFT JOIN GLSXREF ref ON ossbr_2_1.SRSECCODE = ref.sm_SECURITY_CODE
- LEFT JOIN MFSPRIC ON SUBSTRING(GLSXREF.SEND_CD, 4, 5) = MFSPRIC.PRC_DTL_SEND_NUM
- LEFT JOIN GLSXREF ON ossbr_2_1.SRSECCODE = GLSXREF.sm_SECURITY_CODE
- LEFT JOIN MFSPRIC ON SUBSTRING(GLSXREF.SEND_CD, 4, 5) = MFSPRIC.PRC_DTL_SEND_NUM
+ SELECT mas.*
+ FROM ossbr_2_1 mas
  LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.sm_SECURITY_CODE
+ LEFT JOIN MFSPRIC ON SUBSTRING(GLSXREF.SEND_CD, 4, 5) = MFSPRIC.PRC_DTL_SEND_NUM
+ LEFT JOIN GLSXREF ref1 ON mas.SRSECCODE = GLSXREF.sm_SECURITY_CODE
+ LEFT JOIN GLSXREF ref2 ON mas.SRSECCODE = ref.sm_SECURITY_CODE
+ LEFT JOIN GLSXREF ref3 ON mas.SRSECCODE = ref.WASTE_SECURITY_CODE
  LEFT JOIN tantrum tantrum ON mas.SRSECCODE = tantrum.SRSECCODE
- LEFT JOIN GLSREF ref ON mas.SRSECCODE = ref.sm_SECURITY_CODE
+ LEFT JOIN GLSREF ref4 ON mas.SRSECCODE = ref.sm_SECURITY_CODE
  LEFT JOIN MFIN edx ON SUBSTRING (ref.SEND_CD, 4, 5) = edx.MFIN_SEND_NUMBER
- LEFT JOIN GLSXREF ref ON ossbr.SRSECCODE = ref.WASTE_SECURITY_CODE
 
 WHERE
  -- Business Rule Block #1
@@ -38,44 +38,36 @@ SELECT
    THEN '+00616' 
   ELSE COALESCE(get_stndrd_id('EDW','EDW_CURNCY_CD', 'N', mas.secrty_curncy_id), '+00616') 
  END 
- END AS CURNCY_CD
-  -- Source context preserved: FROM ossbr_2_1 mas,
+ END AS CURNCY_CD,
   CASE
   
   WHEN RTRIM(mas.SRCUSIPNBR)= 
    THEN '000000000' 
   ELSE mas.SRCUSIPNBR 
- END AS CUSIP_ID
-  -- Source context preserved: FROM ossbr_2_1 mas,
+ END AS CUSIP_ID,
   CASE
   
   WHEN mas.SRSECTYPE = '210' 
    THEN 'N' 
   ELSE 'Y' 
- END AS ERLCSH_ELIGBL_IN
-  -- Source context preserved: FROM ossbr_2_1 mas,
+ END AS ERLCSH_ELIGBL_IN,
   CAST(NULL AS DATE) AS final_offer_dt,
   CASE
   
   WHEN TRY_CAST(mas.SBDSBDATE AS DATE) IS NOT NULL AND mas.SBDSBDATE <> '0001-01-01' 
    THEN mas.SBDSBDATE 
   ELSE NULL 
- END AS FIRST_OFFER_DT
-  -- Source context preserved: FROM ossbr_2_1 mas,
-  CAST('A' AS BIGINT) AS fis_paper_type_CD,
+ END AS FIRST_OFFER_DT,
+  'A' AS fis_paper_type_CD,
   CAST(0 AS BIGINT) AS fis_secrty_id,
   -- NOTE: merged 3 duplicate definitions for target column 'int_freq_CD'
   CASE
   -- Check if tantrum_FAMLY_CD is +01309 (MMK) or +01310 (FIX) 
  
   WHEN tantrum.INSTR_FAMILY_CD IN ('+01309', '+01310') 
-   THEN COALESCE(get_stndrd_id('EDW', 'EDW_INT_FREQ_CD', 'N', mas.SRPREQ),'-00001' -- Default to Not Applicable if no standard mapping is found 
- 
-  ELSE '-00001' -- Not Applicable 
- 
- END AS INT_FREQ_CD
-  -- Source context preserved: FROM ossbr_2_1 mas
- LEFT JOIN tantrum tantrum ON mas.SRSECCODE = tantrum.SRSECCODE,
+   THEN COALESCE(get_stndrd_id('EDW', 'EDW_INT_FREQ_CD', 'N', mas.SRPREQ),'-00001' 
+ELSE '-00001' 
+END AS INT_FREQ_CD,
   CAST(0 AS BIGINT) AS int_rate_id,
   CAST(-2 AS BIGINT) AS int_relatn_CD,
   CASE
@@ -83,13 +75,12 @@ SELECT
   WHEN TRY_CAST(mas.SRPMTRATE AS FLOAT) IS NOT NULL AND mas.SRPMTRATE > 0 AND mas.SRPMTRATE <= 999.99999 
    THEN mas.SRPMTRATE 
   ELSE NULL 
- END AS INT_RT
-  -- Source context preserved: FROM ossbr_2_1 mas,
+ END AS INT_RT,
   CAST(0 AS BIGINT) AS issuer_org_id,
   TO_DATE('"""${etl.effective.start.date}"""', 'yyyyMMddHHmmss') AS last_change_dt,
   CAST(114 AS BIGINT) AS lifecy_CD,
   CURRENT_TIMESTAMP() AS load_ts,
-  -- NOTE: merged 2 variations for target column 'mu_fund_family_CD'
+  -- NOTE: merged 4 duplicate definitions for target column 'mu_fund_family_CD'
   CASE
   
   WHEN ref.sm_SECURITY_CODE IS NOT NULL AND LEFT(ref.SEND_CD, 3) = 'SBB' 
@@ -129,42 +120,35 @@ SELECT
   WHEN edx.MFIN_ASSET_ORDER = 15 
    THEN '+12554' -- ADVANTAGE /n 
   WHEN edx.MFIN_ASSET_ORDER = 16 
-   THEN '+12559' -- CORPORATE /n 
-  ELSE '-00004' -- Invalid /n 
- END 
-  ELSE '-00001' -- Not Applicable /n 
- END 
-  ELSE '-00001' -- Not Applicable /n 
- END AS mu_fund_FAMILY_CD
-  -- Source context preserved: FROM ossbr_2_1 mas
- LEFT JOIN GLSREF ref ON mas.SRSECCODE = ref.sm_SECURITY_CODE
- LEFT JOIN MFIN edx ON SUBSTRING (ref.SEND_CD, 4, 5) = edx.MFIN_SEND_NUMBER,
+   THEN '+12559' 
+ELSE '-00004' 
+END 
+  ELSE '-00001' 
+END 
+  ELSE '-00001' 
+END AS mu_fund_FAMILY_CD,
   -- NOTE: merged 2 duplicate definitions for target column 'mu_fund_id'
   CASE
   
   WHEN ref.sm_SECURITY_CODE IS NOT NULL 
    THEN ref.SEND_CD 
   ELSE '00000000' 
- END AS mu_fund_ID
-  -- Source context preserved: FROM ossbr_2_1 mas
- LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.sm_SECURITY_CODE,
+ END AS mu_fund_ID,
   CAST(NULL AS DATE) AS row_exclsn_dt,
   CASE
   
   WHEN TRY_CAST(mas.SRSECCLAS AS INT) IS NOT NULL 
    THEN mas.SRSECCLAS 
   ELSE '0' 
- END AS SECRTY_CLASS_ID
-  -- Source context preserved: FROM ossbr_2_1 mas,
+ END AS SECRTY_CLASS_ID,
   CAST(1342 AS BIGINT) AS secrty_view_CD,
-  TO_DATE(borid, 'YYYY-MM-DD') AS sm_secrty_id,
+  TO_DATE({source_column}, 'YYYY-MM-DD') AS sm_secrty_id,
   CASE
   
   WHEN TRY_CAST(mas.SRSECTYPE AS INT) IS NOT NULL 
    THEN mas.SRSECTYPE 
   ELSE '+00000' 
- END AS sm.SECRTY_TYPE_ID
-  -- Source context preserved: FROM ossbr_2_1 mas,
+ END AS sm_secrty_type_id,
   CAST(239 AS BIGINT) AS source_appl_CD,
   CAST(NULL AS STRING) AS sumary_combin_id,
   CASE
@@ -190,8 +174,7 @@ SELECT
    THEN '+01310' 
   ELSE '+01316' 
  END 
- END AS tantrum_family_cd
- LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.sm_SECURITY_CODE AS tantrum_family_CD,
+ END AS tantrum_family_cd,
   -- NOTE: merged 3 duplicate definitions for target column 'tantrum_issued_in'
   CASE
   
@@ -200,51 +183,23 @@ SELECT
   WHEN LEFT(mas.SRSHSBESE, 2) = 'SB' 
    THEN 'Y' 
   ELSE 'N' 
- END AS tantrum_issued_in
-  -- Source context preserved: FROM ossbr_2_1 mas
- LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.sm_SECURITY_CODE,
+ END AS tantrum_issued_in,
   -- NOTE: merged 2 variations for target column 'tantrum_na'
   CASE
   
   WHEN ref.sm_SECURITY_CODE IS NOT NULL 
    THEN RTRIM(ref.FUND_DESC) 
-  ELSE RTRIM(mas.SRSHSBESE) AS tantrum_na,
-  -- NOTE: merged 2 variations for target column 'tantrumid'
+  ELSE RTRIM(mas.SRSHSBESE) 
+ END AS tantrum_na,
+  -- NOTE: merged 3 duplicate definitions for target column 'tantrumid'
+  NULL /* unresolved expression guarded: CASE
+ WHEN LEFT(GLSXREF.SEND_CD, 3) = 'SBB' THEN
   CASE
- 
- 
-  WHEN LEFT(GLSXREF.SEND_CD, 3) = 'SBB' 
-   THEN
-  CASE
- 
-   
-  WHEN SUBSTRING(GLSXREF.SEND_CD, 4, 5) = MFSPRIC.PRC_DTL_SEND_NUM 
-   THEN NULL
-   
-  ELSE
-    CASE
- 
-     
-  WHEN SUBSTRING(GLSXREF.SEND_CD, 4, 3) LIKE '[0-9]%' AND SUBSTRING(GLSXREF.SEND_CD, 7, 2) = '*' 
-   THEN CONCAT(230000000000, SUBSTRING(GLSXREF.SEND_CD, 4, 3))
-     
-  WHEN LEN(TRIM(SUBSTRING(GLSXREF.SEND_CD, 4, 5))) > 0 
-   THEN CONCAT(STRING_AGG(FORMAT(ASCII(SUBSTRING(GLSXREF.SEND_CD, 4, 1)), '00')), '000')
-     
-  ELSE CONCAT('23000', STRING_AGG(FORMAT(ASCII(SUBSTRING(GLSXREF.SEND_CD, 4, 1)), '00')))
-    
+   WHEN SUBSTRING(GLSXREF.SEND_CD, 4, 5) = MFSPRIC.PRC_DTL... */
  END
-  
- END
- 
-  ELSE CONCAT('500', STRING_AGG(FORMAT(ASCII(ossbr_2_1.SRSECCODE), '00')))
-
- END AS tantrum_id
-  -- Source context preserved: FROM ossbr_2_1
- LEFT JOIN GLSXREF ON ossbr_2_1.SRSECCODE = GLSXREF.sm_SECURITY_CODE
- LEFT JOIN MFSPRIC ON SUBSTRING(GLSXREF.SEND_CD, 4, 5) = MFSPRIC.PRC_DTL_SEND_NUM,
-  CAST('N' AS STRING) AS tct_issue_in,
-  CAST('A' AS BIGINT) AS term_family_CD,
+ END AS tantrumid,
+  'N' AS tct_issue_in,
+  'A' AS term_family_CD,
   CAST('9999-12-31' AS DATE) AS to_dt,
   CAST(0 AS BIGINT) AS trm_prodct_id,
   CAST(0 AS BIGINT) AS varble_rate_id
