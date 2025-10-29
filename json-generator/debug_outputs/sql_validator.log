@@ -1,0 +1,32 @@
+
+[2025-10-29 01:18:09] sql_validator.log
+--------------------------------------------------------------------------------
+⚠️ No valid columns resolved for ossbr_2_1. Using *.
+
+[2025-10-29 01:18:09] sql_validator.log
+--------------------------------------------------------------------------------
+⚠️ No valid columns resolved for GLSXREF. Using *.
+
+[2025-10-29 01:18:09] sql_validator.log
+--------------------------------------------------------------------------------
+✅ Resolved 3 columns for MFSPRIC: 0, DTL_SEND_NUM, AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls
+
+[2025-10-29 01:18:09] sql_validator.log
+--------------------------------------------------------------------------------
+✅ Resolved 2 columns for tantrum: AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls, tantrum_family_CD
+
+[2025-10-29 01:18:09] sql_validator.log
+--------------------------------------------------------------------------------
+⚠️ No valid columns resolved for MFIN. Using *.
+
+[2025-10-29 01:18:09] sql_validator.log
+--------------------------------------------------------------------------------
+Auto-fixed 2 missing END(s) for CASE in column 'tgt_column    T_tantrum_0002
+tgt_column         tantrumid
+Name: 1, dtype: object'
+
+[2025-10-29 01:18:09] sql_validator.log
+--------------------------------------------------------------------------------
+Auto-fixed 2 missing END(s) for CASE in column 'tgt_column    T_tantrum_0002
+tgt_column         tantrumid
+Name: 0, dtype: object'

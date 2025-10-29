@@ -1,0 +1,100 @@
+
+[2025-10-29 01:18:09] joins_debug.log
+--------------------------------------------------------------------------------
+NORMALIZED: LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.sm_SECURITY_CODE LEFT JOIN MFSPRIC ON SUBSTRING(ref.SEND_CD, 4, 5) = MFSPRIC.PRC_DTL_SEND_NUM
+
+[2025-10-29 01:18:09] joins_debug.log
+--------------------------------------------------------------------------------
+NORMALIZED: LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.WASTE_SECURITY_CODE
+
+[2025-10-29 01:18:09] joins_debug.log
+--------------------------------------------------------------------------------
+NORMALIZED: LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.sm_SECURITY_CODE
+
+[2025-10-29 01:18:09] joins_debug.log
+--------------------------------------------------------------------------------
+NORMALIZED: LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.sm_SECURITY_CODE
+
+[2025-10-29 01:18:09] joins_debug.log
+--------------------------------------------------------------------------------
+NORMALIZED: nan
+
+[2025-10-29 01:18:09] joins_debug.log
+--------------------------------------------------------------------------------
+NORMALIZED: nan
+
+[2025-10-29 01:18:09] joins_debug.log
+--------------------------------------------------------------------------------
+NORMALIZED: LEFT JOIN tantrum ON mas.SRSECCODE = tantrum.SRSECCODE
+
+[2025-10-29 01:18:09] joins_debug.log
+--------------------------------------------------------------------------------
+NORMALIZED: LEFT JOIN tantrum ON mas.SRSECCODE = tantrum.SRSECCODE
+
+[2025-10-29 01:18:09] joins_debug.log
+--------------------------------------------------------------------------------
+NORMALIZED: nan
+
+[2025-10-29 01:18:09] joins_debug.log
+--------------------------------------------------------------------------------
+NORMALIZED: nan
+
+[2025-10-29 01:18:09] joins_debug.log
+--------------------------------------------------------------------------------
+NORMALIZED: nan
+
+[2025-10-29 01:18:09] joins_debug.log
+--------------------------------------------------------------------------------
+NORMALIZED: nan
+
+[2025-10-29 01:18:09] joins_debug.log
+--------------------------------------------------------------------------------
+NORMALIZED: nan
+
+[2025-10-29 01:18:09] joins_debug.log
+--------------------------------------------------------------------------------
+NORMALIZED: LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.sm_SECURITY_CODE LEFT JOIN MFSPRIC ON SUBSTRING(ref.SEND_CD, 4, 5) = MFSPRIC.PRC_DTL_SEND_NUM
+
+[2025-10-29 01:18:09] joins_debug.log
+--------------------------------------------------------------------------------
+NORMALIZED: LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.sm_SECURITY_CODE
+
+[2025-10-29 01:18:09] joins_debug.log
+--------------------------------------------------------------------------------
+NORMALIZED: LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.sm_SECURITY_CODE
+
+[2025-10-29 01:18:09] joins_debug.log
+--------------------------------------------------------------------------------
+NORMALIZED: LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.sm_SECURITY_CODE
+
+[2025-10-29 01:18:09] joins_debug.log
+--------------------------------------------------------------------------------
+NORMALIZED: LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.sm_SECURITY_CODE
+
+[2025-10-29 01:18:09] joins_debug.log
+--------------------------------------------------------------------------------
+NORMALIZED: LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.sm_SECURITY_CODE
+
+[2025-10-29 01:18:09] joins_debug.log
+--------------------------------------------------------------------------------
+NORMALIZED: LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.sm_SECURITY_CODE LEFT JOIN MFIN edx ON SUBSTRING (ref.SEND_CD, 4, 5) = edx.MFIN_SEND_NUMBER
+
+[2025-10-29 01:18:09] joins_debug.log
+--------------------------------------------------------------------------------
+NORMALIZED: LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.sm_SECURITY_CODE LEFT JOIN MFIN edx ON SUBSTRING (ref.SEND_CD, 4, 5) = edx.MFIN_SEND_NUMBER
+
+[2025-10-29 01:18:09] joins_debug.log
+--------------------------------------------------------------------------------
+NORMALIZED: LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.sm_SECURITY_CODE LEFT JOIN MFSPRIC ON SUBSTRING(ref.SEND_CD, 4, 5) = MFSPRIC.PRC_DTL_SEND_NUM
+
+[2025-10-29 01:18:09] joins_debug.log
+--------------------------------------------------------------------------------
+NORMALIZED: LEFT JOIN tantrum ON mas.SRSECCODE = tantrum.SRSECCODE
+
+[2025-10-29 01:18:09] joins_debug.log
+--------------------------------------------------------------------------------
+NORMALIZED: LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.sm_SECURITY_CODE LEFT JOIN MFIN edx ON SUBSTRING (ref.SEND_CD, 4, 5) = edx.MFIN_SEND_NUMBER
+
+[2025-10-29 01:18:09] joins_debug.log
+--------------------------------------------------------------------------------
+NORMALIZED: LEFT JOIN GLSXREF ref ON mas.SRSECCODE = ref.sm_SECURITY_CODE LEFT JOIN MFIN edx ON SUBSTRING (ref.SEND_CD, 4, 5) = edx.MFIN_SEND_NUMBER

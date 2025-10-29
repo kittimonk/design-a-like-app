@@ -1,0 +1,122 @@
+{
+  "source malcode": "ND",
+  "source basepath": "ND",
+  "comment": "This job is responsible for loading data into tantrum from ND - ossbr_2_1, GLSXREF, MFSPRIC, tantrum, MFIN",
+  "modules": {
+    "data_sourcing_process": {
+      "options": {
+        "module": "data_sourcing_process",
+        "method": "process"
+      },
+      "loggable": true,
+      "sourcelist": [
+        "ossbr_2_1",
+        "GLSXREF",
+        "MFSPRIC",
+        "tantrum",
+        "MFIN"
+      ],
+      "ossbr_2_1": {
+        "type": "sz_zone",
+        "table.name": "ossbr_2_1",
+        "read-format": "view",
+        "path": "${adls.source.root}/ossbr_2_1"
+      },
+      "GLSXREF": {
+        "type": "sz_zone",
+        "table.name": "GLSXREF",
+        "read-format": "view",
+        "path": "${adls.source.root}/GLSXREF"
+      },
+      "MFSPRIC": {
+        "type": "sz_zone",
+        "table.name": "MFSPRIC",
+        "read-format": "view",
+        "path": "${adls.source.root}/MFSPRIC"
+      },
+      "tantrum": {
+        "type": "sz_zone",
+        "table.name": "tantrum",
+        "read-format": "view",
+        "path": "${adls.source.root}/tantrum"
+      },
+      "MFIN": {
+        "type": "sz_zone",
+        "table.name": "MFIN",
+        "read-format": "view",
+        "path": "${adls.source.root}/MFIN"
+      }
+    },
+    "dt_tantrum_nd_ossbr_2_1": {
+      "sql": "\"\"\"SELECT\n    mas.*\nFROM ossbr_2_1 mas\nLEFT JOIN GLSXREF ref1 ON mas.SRSECCODE = ref.WASTE_SECURITY_CODE\nLEFT JOIN GLSXREF ref2 ON mas.SRSECCODE = ref.sm_SECURITY_CODE\nLEFT JOIN tantrum tan ON mas.SRSECCODE = tantrum.SRSECCODE\n\nWHERE\n  -- Business Rule Block #1\n  -- NOTE: Evaluate rule -> reject the record if duplicate mas.SRSECCODE found and\n  -- NOTE: Evaluate rule -> reject the record and\n  -- NOTE: Exclusion rule -> 3) If mas.SRSTATUS <> 'A' (i.e. not active) exclude the record (no exception logging required)\n  mas.SRSTATUS = 'A'\"\"\"",
+      "loggable": true,
+      "options": {
+        "module": "data_transformation",
+        "method": "process"
+      },
+      "name": "dt_tantrum_nd_ossbr_2_1"
+    },
+    "dt_tantrum_nd_GLSXREF": {
+      "sql": "\"\"\"SELECT\n    mas.*\nFROM GLSXREF mas\nLEFT JOIN GLSXREF ref1 ON mas.SRSECCODE = ref.sm_SECURITY_CODE\nLEFT JOIN GLSXREF ref2 ON mas.SRSECCODE = ref.sm_SECURITY_CODE LEFT JOIN MFIN edx ON SUBSTRING (ref.SEND_CD, 4, 5) = edx.MFIN_SEND_NUMBER\n\nWHERE\n  -- Business Rule Block #1\n  -- NOTE: Evaluate rule -> reject the record if duplicate mas.SRSECCODE found and\n  -- NOTE: Evaluate rule -> reject the record and\n  -- NOTE: Exclusion rule -> 3) If mas.SRSTATUS <> 'A' (i.e. not active) exclude the record (no exception logging required)\n  mas.SRSTATUS = 'A'\"\"\"",
+      "loggable": true,
+      "options": {
+        "module": "data_transformation",
+        "method": "process"
+      },
+      "name": "dt_tantrum_nd_GLSXREF"
+    },
+    "dt_tantrum_nd_MFSPRIC": {
+      "sql": "\"\"\"SELECT\n    mas.0,\n    mas.DTL_SEND_NUM,\n    mas.AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls\nFROM MFSPRIC mas\n\nWHERE\n  -- Business Rule Block #1\n  -- NOTE: Evaluate rule -> reject the record if duplicate mas.SRSECCODE found and\n  -- NOTE: Evaluate rule -> reject the record and\n  -- NOTE: Exclusion rule -> 3) If mas.SRSTATUS <> 'A' (i.e. not active) exclude the record (no exception logging required)\n  mas.SRSTATUS = 'A'\"\"\"",
+      "loggable": true,
+      "options": {
+        "module": "data_transformation",
+        "method": "process"
+      },
+      "name": "dt_tantrum_nd_MFSPRIC"
+    },
+    "dt_tantrum_nd_tantrum": {
+      "sql": "\"\"\"SELECT\n    mas.AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls,\n    mas.tantrum_family_CD\nFROM tantrum mas\nLEFT JOIN tantrum tan ON mas.SRSECCODE = tantrum.SRSECCODE\"\"\"",
+      "loggable": true,
+      "options": {
+        "module": "data_transformation",
+        "method": "process"
+      },
+      "name": "dt_tantrum_nd_tantrum"
+    },
+    "dt_tantrum_nd_MFIN": {
+      "sql": "\"\"\"SELECT\n    mas.*\nFROM MFIN mas\"\"\"",
+      "loggable": true,
+      "options": {
+        "module": "data_transformation",
+        "method": "process"
+      },
+      "name": "dt_tantrum_nd_MFIN"
+    },
+    "dt_tantrum_nd": {
+      "sql": "\"\"\"SELECT\n    NULL /* unresolved expression guarded: CASE\n  WHEN LEFT(ref.SEND_CD, 3) = 'SBB' THEN\n    CASE\n      WHEN SUBSTRING(ref.SEND_CD, 4, 5) = MFSPRIC.PRC_DTL_SEND_NU... */\n  END\n  END AS tgt_column____T_tantrum_0002_tgt_column_________tantrumid_Name__1__dtype__object,\n    NULL /* unresolved expression guarded: CASE\n  WHEN LEFT(ref.SEND_CD, 3) = 'SBB' THEN\n    CASE\n      WHEN SUBSTRING(ref.SEND_CD, 4, 5) = MFSPRIC.PRC_DTL_SEND_NU... */\n  END\n  END AS tgt_column____T_tantrum_0002_tgt_column_________tantrumid_Name__0__dtype__object,\n    -- NOTE: merged 28 variations for target column 'tgt_column    T_tantrum_0002\ntgt_column         tantrumid\nName: 2, dtype: object'\n    331 AS tgt_column____T_tantrum_0002_tgt_column_________tantrumid_Name__2__dtype__object\nFROM dt_tantrum_nd_ossbr_2_1 base\n-- LEFT JOIN dt_tantrum_nd_GLSXREF v_GLSXREF ON 1=1  -- TODO: replace with real keys\n-- LEFT JOIN dt_tantrum_nd_MFSPRIC v_MFSPRIC ON 1=1  -- TODO: replace with real keys\n-- LEFT JOIN dt_tantrum_nd_tantrum v_tantrum ON 1=1  -- TODO: replace with real keys\n-- LEFT JOIN dt_tantrum_nd_MFIN v_MFIN ON 1=1  -- TODO: replace with real keys;\"\"\"",
+      "loggable": true,
+      "options": {
+        "module": "data_transformation",
+        "method": "process"
+      },
+      "name": "dt_tantrum_nd"
+    },
+    "load_enrich_process": {
+      "options": {
+        "module": "load_enrich_process",
+        "method": "process"
+      },
+      "loggable": true,
+      "sql": "SELECT * FROM dt_tantrum_nd",
+      "target-path": "${adls.stage.root}/ND",
+      "mode-of-write": "replace_partition",
+      "keys": "",
+      "cdc-flag": false,
+      "scd2-flag": false,
+      "partition-by": "effective_dt",
+      "target-format": "delta",
+      "target-table": "/tantrum",
+      "name": "tantrum_daily"
+    }
+  }
+}

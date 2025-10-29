@@ -1,7 +1,20 @@
-Auto-fixed 2 missing END(s) for CASE in column 'tantrumid'
+[dt_tantrum_nd_ossbr_2_1.sql] issues:
+- JOINs missing ON clause detected: 3 potential issues
+- Mismatched parentheses count
 
-==== SQL VALIDATION ISSUES ====
-JOINs missing ON clause detected: 8 potential issues
-Unbalanced CASE/END blocks
-Potential undefined aliases: GLSXREF, MFSPRIC, PRC_DTL, e, edx, effective, etl, i, ossbr_2_1, start, tantrum
+[dt_tantrum_nd_GLSXREF.sql] issues:
+- JOINs missing ON clause detected: 3 potential issues
+- Unbalanced CASE/END blocks
+- Mismatched parentheses count
+
+[dt_tantrum_nd_MFSPRIC.sql] issues:
+- Unbalanced CASE/END blocks
+- Mismatched parentheses count
+
+[dt_tantrum_nd_tantrum.sql] issues:
+- JOINs missing ON clause detected: 1 potential issues
+
+[dt_tantrum_nd.sql] issues:
+- JOINs missing ON clause detected: 4 potential issues
+- Unbalanced CASE/END blocks
 

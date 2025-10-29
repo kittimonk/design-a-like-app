@@ -405,67 +405,117 @@ def load_mapping(csv_path: str) -> pd.DataFrame:
 # Per-source CTE builder
 # ==============================
 
-def build_source_cte_sql(source: str, df: pd.DataFrame, base_alias: str = "mas") -> Tuple[str, List[Dict[str,str]]]:
+def build_source_cte_sql(source: str, df: pd.DataFrame, base_alias: str = "mas") -> Tuple[str, List[Dict[str, str]]]:
     """
-    Build a per-source CTE that selects * from the source and applies any
-    joins/business rules relevant to rows whose src_table == source.
-    Returns (sql_text, audit_rows_for_source).
+    Build a per-source CTE that selects explicit columns from the source table,
+    applies joins and business rules specific to that source, and returns both
+    the generated SQL text and any audit rows.
     """
-    # Fully safe filtering
+    # --- Identify canonical header names ---
+    table_col = "src_table" if "src_table" in df.columns else "Table/File Name * (auto populate)"
+    col_col = "src_column" if "src_column" in df.columns else "Column Name * (auto populate)"
+    join_col = "join_clause" if "join_clause" in df.columns else "Join Clause (auto populate)"
+    rule_col = "business_rule" if "business_rule" in df.columns else "Business Rule (auto populate)"
+
+    # --- Filter relevant rows for this source ---
     sdf = df[
-        df["src_table"]
-        .apply(lambda x: (str(x).strip().split()[0].lower() if str(x).strip() else ""))
+        df[table_col]
+        .astype(str)
+        .str.strip()
+        .str.lower()
+        .apply(lambda x: x.split()[0] if x else "")
         == source.lower()
     ].copy()
 
+    # --- Handle no rows (pass-through) ---
     if sdf.empty:
-        # If no explicit rows, still create a simple pass-through view from the source
-        # Try to use all columns from df that belong to this source if available
-        cols = [
-            f"{base_alias}.{c.strip()}"
-            for c in df.loc[
-                df["src_table"].astype(str).str.lower() == source.lower(), "src_column"
-            ].dropna().unique()
-            if str(c).strip() not in ("", "nan")
-        ]
-        col_list = ",\n    ".join(cols) if cols else f"{base_alias}.*"
-        core = f"SELECT\n    {col_list}\nFROM {source} {base_alias}"
-        return core, []
+        _log("sql_validator.log", f"ℹ️ No mapping rows for {source}, generating pass-through view.")
+        # Extract source columns safely
+        try:
+            src_cols = (
+                df.loc[df[table_col].astype(str).str.lower() == source.lower(), col_col]
+                .dropna()
+                .squeeze()
+            )
+            if isinstance(src_cols, pd.DataFrame):
+                src_cols = src_cols.iloc[:, 0]
+            src_cols = (
+                src_cols.astype(str)
+                .str.strip()
+                .replace(r"(?i)\bnan\b", "", regex=True)
+            )
+            src_cols = [c for c in src_cols.unique() if c and not re.match(r"(?i)^t_[a-z0-9_]+_\d+$", c)]
+        except Exception as e:
+            _log("sql_validator.log", f"⚠️ Error while resolving columns for {source}: {e}")
+            src_cols = []
 
-    # Build joins
+        col_list = ",\n    ".join(f"{base_alias}.{c}" for c in src_cols) if src_cols else f"{base_alias}.*"
+        sql = f"SELECT\n    {col_list}\nFROM {source} {base_alias}"
+        return sql, []
+
+    # --- Build joins ---
     joins_raw = []
-    for txt in list(sdf.get("join_clause", [])):
-        j = normalize_join(txt)
-        if j:
-            joins_raw.append(j)
+    for txt in sdf.get(join_col, []):
+        if isinstance(txt, str) and txt.strip():
+            j = normalize_join(txt)
+            if j:
+                joins_raw.append(j)
     joins = ensure_unique_join_aliases(joins_raw, base_alias=base_alias)
 
-    # Business rules → WHERE
+    # --- Business rules → WHERE ---
     where_blocks = []
-    for txt in list(sdf.get("business_rule", [])):
+    for txt in list(sdf.get(rule_col, [])):
         blk = business_rules_to_where(txt)
         if blk:
             where_blocks.append(blk)
+
     where_clause = ""
     if where_blocks:
-        deduped = []
-        seen = set()
+        deduped, seen = [], set()
         for b in where_blocks:
             k = b.lower().strip()
-            if k and k not in seen:
-                deduped.append(b)
+            if k not in seen:
                 seen.add(k)
+                deduped.append(b)
         where_clause = "\nWHERE\n  " + "\n  AND ".join(
             [f"-- Business Rule Block #{i+1}\n  {b}" for i, b in enumerate(deduped)]
         )
 
-    # Core select
-    core = f"SELECT {base_alias}.*\nFROM {source} {base_alias}"
+    # --- Build explicit column list safely ---
+    try:
+        src_cols = (
+            sdf[col_col]
+            .dropna()
+            .squeeze()
+        )
+        if isinstance(src_cols, pd.DataFrame):
+            src_cols = src_cols.iloc[:, 0]
+        src_cols = (
+            src_cols.astype(str)
+            .str.strip()
+            .replace(r"(?i)\bnan\b", "", regex=True)
+        )
+        src_cols = [c for c in src_cols.unique() if c and not re.match(r"(?i)^t_[a-z0-9_]+_\d+$", c)]
+    except Exception as e:
+        _log("sql_validator.log", f"⚠️ Error extracting columns for {source}: {e}")
+        src_cols = []
+
+    if not src_cols:
+        _log("sql_validator.log", f"⚠️ No valid columns resolved for {source}. Using *.")
+        col_list = f"{base_alias}.*"
+    else:
+        _log("sql_validator.log", f"✅ Resolved {len(src_cols)} columns for {source}: {', '.join(src_cols[:10])}{'...' if len(src_cols) > 10 else ''}")
+        col_list = ",\n    ".join(f"{base_alias}.{c}" for c in src_cols)
+
+    # --- Build final SQL ---
+    sql = f"SELECT\n    {col_list}\nFROM {source} {base_alias}"
     if joins:
-        core += "\n" + "\n".join(f"{j}" for j in joins)
+        sql += "\n" + "\n".join(joins)
     if where_clause:
-        core += "\n" + where_clause
-    return core, []
+        sql += "\n" + where_clause
+
+    return sql, []
+
 
 # ==============================
 # Column-level transformation synthesis (for final CTE)

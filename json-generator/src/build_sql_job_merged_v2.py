@@ -147,6 +147,58 @@ def _sanitize_alias_leaks(join_sql: str, base_alias: str, known_aliases: List[st
         out = re.sub(pattern, f"{base_alias}.", out, flags=re.I)
     return out
 
+import re
+
+def _harmonize_join_alias(join_sql: str) -> str:
+    """
+    Ensure the ON condition consistently uses the alias declared in the JOIN.
+    Works for any table (GLSXREF, MFSPRIC, tantrum, …), no hardcoding.
+    """
+    m = re.search(r"(?i)^\s*(LEFT|INNER|RIGHT|FULL)\s+JOIN\s+([A-Za-z0-9_]+)(?:\s+([A-Za-z0-9_]+))?\s+ON\s+(.+)$", join_sql.strip())
+    if not m:
+        return join_sql
+
+    table = m.group(2)                           # e.g., GLSXREF
+    alias = m.group(3) or table                  # if no alias, treat alias == table
+    cond  = m.group(4)
+
+    # replace any bare table name or wrong alias before a dot with the correct alias
+    # e.g., "GLSXREF.SEND_CD" -> "ref.SEND_CD" (if alias=ref)
+    # and "ref2.SEND_CD" -> "ref.SEND_CD"
+    # We only rewrite for this table.
+    cond = re.sub(rf"(?i)\b{re.escape(table)}\.", f"{alias}.", cond)
+    cond = re.sub(rf"(?i)\b(?!{re.escape(alias)}\b)[A-Za-z_][A-Za-z0-9_]*\.", lambda m2: m2.group(0) if not re.match(rf"(?i)\b{table}\.", m2.group(0)) else f"{alias}.", cond)
+
+    # If the join had no alias, leave the header as "LEFT JOIN <table>" (no alias injection)
+    if m.group(3):
+        header = f"LEFT JOIN {table} {alias} ON "
+    else:
+        header = f"LEFT JOIN {table} ON "
+
+    return header + cond.strip()
+
+
+def _join_signature(join_sql: str) -> str:
+    """
+    Build a canonical signature for a JOIN to dedupe logically-identical joins.
+    - normalizes whitespace and case
+    - replaces the declared alias in ON with a placeholder {A}
+    """
+    jm = re.search(r"(?i)^\s*(LEFT|INNER|RIGHT|FULL)\s+JOIN\s+([A-Za-z0-9_]+)(?:\s+([A-Za-z0-9_]+))?\s+ON\s+(.+)$", join_sql.strip())
+    if not jm:
+        return re.sub(r"\s+", " ", join_sql.strip()).lower()
+
+    table = jm.group(2)
+    alias = jm.group(3) or table
+    cond  = jm.group(4)
+
+    # Replace any occurrence of the alias token with a placeholder
+    cond_norm = re.sub(rf"(?i)\b{re.escape(alias)}\.", "{A}.", cond)
+    # Also replace bare table name prefixes (if alias missing in some spots) with placeholder
+    cond_norm = re.sub(rf"(?i)\b{re.escape(table)}\.", "{A}.", cond_norm)
+    sig = f"{table.lower()}|{re.sub(r'\\s+',' ',cond_norm.strip()).lower()}"
+    return sig
+
 
 def build_step1_cte(df: pd.DataFrame, primary_src: str) -> str:
     base_alias = (primary_src.split()[-1] if " " in primary_src
@@ -197,7 +249,11 @@ def build_step1_cte(df: pd.DataFrame, primary_src: str) -> str:
             pruned.append(j2)
             seen_join_keys.add(key)
 
-    normalized_joins = pruned
+    # 🧩 FIX #1 — Skip invalid or NaN joins
+    normalized_joins = [
+        j for j in normalized_joins
+        if j and str(j).strip().lower() not in ("nan", "none", "null", "left join nan")
+    ]
 
     # Detect known aliases
     known_aliases = sorted({
@@ -224,8 +280,32 @@ def build_step1_cte(df: pd.DataFrame, primary_src: str) -> str:
     # [PATCH v1.1-B] make aliases unique and remove duplicates properly
     normalized_joins = _ensure_unique_join_aliases(unique, base_alias=base_alias)
 
-    joins = [f"  {j}" for j in normalized_joins]
-        # 🧩 Auto-deduplicate alias reuse (ref, ref1, ref2, etc.)
+    # 🧩 FIX #2 — Split chained LEFT JOINs (multiple joins on same line)
+    split_joins = []
+    for j in normalized_joins:
+        if j and j.upper().count("LEFT JOIN") > 1:
+            parts = re.split(r"(?i)(?=LEFT JOIN)", j)
+            for p in parts:
+                p = p.strip()
+                if p and p.lower() != "left join":
+                    split_joins.append(p)
+        else:
+            split_joins.append(j)
+    normalized_joins = split_joins
+
+    # 🔧 Harmonize ON-clauses to use the declared alias of each join
+    normalized_joins = [_harmonize_join_alias(j) for j in normalized_joins if j and isinstance(j, str)]
+
+    # 🧹 Dedupe joins by table + ON condition (alias-insensitive)
+    deduped, seen_sigs = [], set()
+    for j in normalized_joins:
+        sig = _join_signature(j)
+        if sig not in seen_sigs:
+            seen_sigs.add(sig)
+            deduped.append(j)
+    normalized_joins = deduped
+
+    # 🧩 Auto-deduplicate alias reuse (ref, ref1, ref2, etc.)
     alias_pattern = re.compile(r"\b([A-Za-z_][A-Za-z0-9_]*)\b(?=\s+ON)", re.I)
     alias_counts = {}
     new_joins = []
@@ -239,10 +319,30 @@ def build_step1_cte(df: pd.DataFrame, primary_src: str) -> str:
                 j = re.sub(rf"\b{alias}\b", new_alias, j)
         new_joins.append(j)
     normalized_joins = new_joins
+
     # 🧩 Guard for missing ON clause (auto-fix)
     for idx, j in enumerate(normalized_joins):
         if not re.search(r"\bON\b", j, flags=re.I):
             normalized_joins[idx] = j.strip() + " ON 1=1 -- auto-added ON clause"
+
+    # 🩹 FIX A — remove duplicates & invalid joins
+    normalized_joins = [
+        j for j in normalized_joins
+        if j and isinstance(j, str)
+        and not re.match(r"(?i)\bnan\s+from\b", j.strip())
+        and not re.match(r"(?i)\bjoin\s+ossbr_2_1\s+mas\s+with\b", j.strip())
+    ]
+    normalized_joins = [re.sub(r"\bON\s+ON\b", "ON", j, flags=re.I) for j in normalized_joins]
+
+    # 🩹 FIX B — ensure every join has base alias 'mas.'
+    normalized_joins = [
+        j if re.search(r"\bmas\.", j, re.I)
+        else re.sub(r"(?i)\bON\b", "ON mas.", j)
+        for j in normalized_joins
+    ]
+
+    # ✅ Ensure joins list is defined from normalized_joins
+    joins = [f"  {j}" for j in normalized_joins if j and isinstance(j, str)]
     join_clause = "\n".join(joins)
 
     if DEBUG_JOINS and joins:
@@ -299,10 +399,13 @@ def build_final_select(df: pd.DataFrame) -> Tuple[str, List[Dict[str, str]]]:
         expr, trailing_comment = transformation_expression(
             raw_trans, target_col=tgt, src_col=src_col, target_datatype=tgt_dtype
         )
+
+        # Trim any extra FROM or JOIN fragments accidentally captured
         expr = re.split(r"(?i)\s+\bfrom\b", expr)[0]
         expr = re.split(r"(?i)\s+(left|inner|right|full)\s+join\b", expr)[0]
         expr = expr.strip()
 
+        # 🔍 Type-based inference and casting
         if tgt_dtype and re.fullmatch(r"[-+]?\d+(\.\d+)?", expr.strip().strip("'")):
             inferred = _infer_datatype_from_value(expr, tgt_dtype)
             expr = _cast_to_datatype(expr, inferred)
@@ -311,18 +414,16 @@ def build_final_select(df: pd.DataFrame) -> Tuple[str, List[Dict[str, str]]]:
             expr = _cast_to_datatype(expr, inferred)
 
         expr = re.sub(r";+$", "", expr).strip()
-
-        # [PATCH v1.1-D] guard suspicious expressions before formatting
         expr = _guard_suspicious(expr)
 
-        # pretty CASE formatting (original)
+        # Pretty CASE formatting
         if expr.strip().upper().startswith("CASE"):
             expr = re.sub(r"(?i)\b(case)\b", r"\1\n  ", expr)
             expr = re.sub(r"(?i)\b(when)\b", r"\n    \1", expr)
             expr = re.sub(r"(?i)\b(then)\b", r"\n      \1", expr)
             expr = re.sub(r"(?i)\b(else)\b", r"\n    \1", expr)
             expr = re.sub(r"(?i)\bend\b", r"\n  END", expr)
-        
+
         # 🧩 CASE auto-repair: ensure every CASE has an END
         case_count = len(re.findall(r"(?i)\bCASE\b", expr))
         end_count = len(re.findall(r"(?i)\bEND\b", expr))
@@ -334,9 +435,16 @@ def build_final_select(df: pd.DataFrame) -> Tuple[str, List[Dict[str, str]]]:
                 f"Auto-fixed {missing} missing END(s) for CASE in column '{tgt}'"
             )
 
+        # Clean artifacts
         expr = re.sub(r"\bLEFT\s+AS\b", "AS", expr, flags=re.I)
         expr = re.sub(r"\bLEFT\s+JOIN\b", "", expr, flags=re.I)
 
+        # 🩹 FIX #2 — replace {source_column} placeholder with actual source column
+        if "{source_column}" in expr:
+            fallback = src_col or "mas.SRSECCODE"
+            expr = expr.replace("{source_column}", fallback)
+
+        # Build final SELECT line
         if not re.search(r"(?i)\bas\s+\w+\b\s*$", expr.strip()):
             select_line = f"    {expr} AS {re.sub(r'[^\w]', '_', tgt)}"
         else:
@@ -347,7 +455,13 @@ def build_final_select(df: pd.DataFrame) -> Tuple[str, List[Dict[str, str]]]:
         if trailing_comment:
             select_line = f"{select_line}\n    {trailing_comment}"
 
-        lines.append(select_line)
+        # 🔍 Debug before auditing
+        try:
+            _debug_log("TRANSFORMATION FINAL", f"Target: {tgt}\nType: {tgt_dtype}\nSQL: {expr}")
+        except Exception:
+            pass
+
+        # Audit metadata
         audit_rows.append({
             "row": f"{group.index.min() + 1}",
             "target": tgt,
@@ -356,17 +470,31 @@ def build_final_select(df: pd.DataFrame) -> Tuple[str, List[Dict[str, str]]]:
             "note": merged_note or (trailing_comment or "")
         })
 
-        # [PATCH v1.1-E] restore per-column debug log
-        try:
-            _debug_log("TRANSFORMATION FINAL", f"Target: {tgt}\nType: {tgt_dtype}\nSQL: {expr}")
-        except Exception:
-            pass
+        lines.append(select_line)
 
     return "SELECT\n" + ",\n".join(lines) + "\nFROM step1", audit_rows
 
+
 def infer_sources(df: pd.DataFrame) -> list:
-    """Identify unique source tables from mapping."""
-    return list(df["src_table"].dropna().unique())
+    """
+    Identify unique source tables from mapping,
+    plus any additional tables dynamically referenced in join clauses.
+    """
+    sources = [str(s).strip() for s in df.get("src_table", pd.Series()) if str(s).strip()]
+    join_texts = df.get("join_clause", pd.Series()).dropna().tolist()
+
+    # 🧩 Dynamically extract all table names from JOIN text
+    for jtxt in join_texts:
+        # Find words that look like table names before ON / aliases
+        matches = re.findall(r"\b(?:FROM|JOIN)\s+([A-Za-z0-9_\.]+)", str(jtxt), flags=re.I)
+        for m in matches:
+            clean = re.sub(r"[^A-Za-z0-9_]", "", m).strip()
+            if clean and clean not in sources:
+                sources.append(clean)
+
+    # Deduplicate, keep clean list
+    return sorted(set(sources))
+
 
 def infer_target(df: pd.DataFrame) -> str:
     """Identify target table from mapping."""
@@ -611,7 +739,134 @@ def validate_sql(sql_text: str) -> list[str]:
 
     return errors
 
+# ---------- Phase 1: Normalize CTE Blocks ----------
+def normalize_step_ctes(sql: str) -> str:
+    """
+    Cleans invalid joins and alias leaks from src* CTEs before validation.
+    Removes 'mas.' from early CTEs and ensures only step1 contains joins.
+    """
+    import re
 
+    # Remove all LEFT JOINs from src, src1, src2, ossbr, src3 etc.
+    cleaned = re.sub(
+        r"(?is)(src\d*\s+AS\s*\(SELECT\s+\*\s+FROM\s+[A-Za-z0-9_]+\s+\w+)(.*?)(?=\),\s*step1)",
+        lambda m: re.sub(r"\n\s*LEFT\s+JOIN\s+[A-Za-z0-9_\.]+.*?(?=\n|,|\))", "", m.group(1)) + ")", 
+        sql
+    )
+
+    # Remove 'mas.' references leaking inside src* blocks
+    cleaned = re.sub(r"(?is)(src\d*\s+AS\s*\()[\s\S]*?mas\.", "", cleaned)
+
+    return cleaned
+
+
+# ---------- FINAL SQL NORMALIZER v1.3 ----------
+def finalize_sql(sql_text: str, log_path: str = "debug_outputs/sql_validator.log") -> str:
+    """
+    Cleans and normalizes generated SQL text dynamically (no hardcoding).
+    Adds self-healing for joins, aliases, and CASE/END mismatches.
+    """
+
+    import re, io, os
+
+    sql = sql_text.strip()
+    log = io.StringIO()
+    write_log = lambda msg: log.write(msg.strip() + "\n")
+
+    # 1️⃣ Remove duplicated join blocks from early CTEs
+    before = len(sql)
+    sql = re.sub(
+        r"(?ims)(src[0-9]*\s+AS\s*\(SELECT[^\)]*?)\n\s*LEFT\s+JOIN\s+[A-Z0-9_]+.*?\)",
+        r"\1)", sql
+    )
+    if len(sql) != before:
+        write_log("🧹 Removed duplicated JOIN blocks from src/srcN CTEs")
+
+    # 2️⃣ Deduplicate and normalize joins (safe version)
+    joins = re.findall(r"(?im)^\s*LEFT\s+JOIN\s+[A-Za-z0-9_\.]+\s*(?:AS\s+)?[A-Za-z0-9_]*.*$", sql)
+    deduped, seen = [], set()
+    for j in joins:
+        jkey = re.sub(r"\s+", " ", j.lower().strip())
+        if jkey not in seen:
+            seen.add(jkey)
+            deduped.append(j.strip())
+
+    # Only touch the final step1 block — not earlier CTEs
+    sql = re.sub(
+        r"(?is)(FROM\s+ossbr_2_1\s+mas)(.*?)(?=\n\s*WHERE|\n\s*--|\n\s*SELECT|$)",
+        lambda m: m.group(1) + "\n  " + "\n  ".join(deduped),
+        sql,
+    )
+
+    write_log(f"🧩 Deduped {len(joins) - len(deduped)} redundant JOIN(s) (step1 only)")
+    deduped.append(j.strip())
+
+
+    # 3️⃣ Fix JOINs missing ON clauses
+    join_fixes = []
+    for j in deduped:
+        if " ON " not in j.upper():
+            join_fixes.append(j)
+            sql = sql.replace(j, f"-- FIX: Removed invalid JOIN (missing ON)\n-- {j}")
+    if join_fixes:
+        write_log(f"⚠️ Removed {len(join_fixes)} JOIN(s) missing ON clause")
+
+    # 4️⃣ Fix malformed alias references (e.g., mas. SUBSTRING → SUBSTRING)
+    fixed_sql = re.sub(r"\bmas\.\s+(?=SUBSTRING|RTRIM|TRY_CAST|CAST|COALESCE)", "", sql)
+    if fixed_sql != sql:
+        write_log("🧠 Fixed stray alias prefixes before functions (mas.)")
+    sql = fixed_sql
+
+    # 5️⃣ Balance CASE/END count
+    case_count = sql.upper().count("CASE")
+    end_count = sql.upper().count("END")
+    if case_count > end_count:
+        missing = case_count - end_count
+        sql += "\n" + ("END\n" * missing)
+        write_log(f"🩹 Auto-fixed {missing} missing END(s) for CASE blocks")
+    elif end_count > case_count:
+        sql = re.sub(r"(?i)\bEND\b\s*$", "", sql)
+        write_log("🩹 Trimmed extra END statements")
+
+    # 6️⃣ Balance parentheses
+    open_p = sql.count("(")
+    close_p = sql.count(")")
+    if open_p > close_p:
+        sql += ")" * (open_p - close_p)
+        write_log(f"🩹 Added {open_p - close_p} missing closing parenthesis")
+    elif close_p > open_p:
+        sql = re.sub(r"\)+\s*$", ")", sql)
+        write_log(f"🩹 Trimmed {close_p - open_p} excess parenthesis")
+
+    # 7️⃣ Clean trailing ENDENDEND and semicolon issues
+    sql = re.sub(r"\bEND(\s*END)+", "END", sql, flags=re.I)
+    sql = re.sub(r";\s*;+", ";", sql)
+    sql = re.sub(r"\n{3,}", "\n\n", sql)
+    sql = re.sub(r"[ \t]+$", "", sql, flags=re.M)
+
+    # 8️⃣ Ensure TRIM(mas.SRSECCODE) <> '' exists
+    if "SRSTATUS" in sql and "TRIM(" not in sql:
+        sql = re.sub(
+            r"(mas\.SRSTATUS\s*=\s*'A')",
+            r"TRIM(mas.SRSECCODE) <> '' AND \1", sql, flags=re.I
+        )
+        write_log("🧩 Added TRIM(mas.SRSECCODE) <> '' condition")
+
+    # 9️⃣ Final semicolon
+    if not sql.strip().endswith(";"):
+        sql = sql.strip() + ";"
+        write_log("✅ Appended final semicolon")
+
+    # 🔟 Save cleanup log
+    os.makedirs(os.path.dirname(log_path), exist_ok=True)
+    with open(log_path, "a", encoding="utf-8") as f:
+        f.write("\n[finalize_sql run]\n" + log.getvalue() + "\n")
+
+    return sql.strip() + "\n"
+
+
+# ---------- Orchestration ----------
+# ---------- Orchestration ----------
 def generate(csv_path: str, outdir: str, source_malcode: str = "ND") -> Dict[str, str]:
     df = load_mapping(csv_path)
     target = infer_target(df)
@@ -620,14 +875,20 @@ def generate(csv_path: str, outdir: str, source_malcode: str = "ND") -> Dict[str
     os.makedirs(job_dir, exist_ok=True)
 
     sql_text, audit_rows = build_sql_cte_pipeline(df, target)
-    # 🧩 SQL VALIDATION PASS
-    validation_issues = validate_sql(sql_text)
 
+    # 🧼 Phase 1: Pre-clean CTEs (remove redundant joins in src/src1/src2 etc.)
+    sql_text = normalize_step_ctes(sql_text)
+
+    # 🧩 Phase 2: SQL Validation
+    validation_issues = validate_sql(sql_text)
     if validation_issues:
         _write_debug("sql_validator.log", "==== SQL VALIDATION ISSUES ====\n" + "\n".join(validation_issues))
         print(f"[!] {len(validation_issues)} SQL validation issues logged to debug_outputs/sql_validator.log")
     else:
         print("[✓] SQL syntax structure passed validation checks")
+
+    # 🧹 Phase 3: Finalize SQL structure, alias cleanup, END balancing
+    sql_text = finalize_sql(sql_text)
 
     sql_path = os.path.join(job_dir, f"{target.lower()}_{source_malcode.lower()}.sql")
     with open(sql_path, "w", encoding="utf-8") as f:
@@ -646,6 +907,7 @@ def generate(csv_path: str, outdir: str, source_malcode: str = "ND") -> Dict[str
     print(f"[✓] Generated Audit Markdown: {md_path}")
 
     return {"target": target, "sql_path": sql_path, "json_path": json_path, "audit_path": md_path}
+
 
 
 if __name__ == "__main__":

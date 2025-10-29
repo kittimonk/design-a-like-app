@@ -1,0 +1,70 @@
+
+[2025-10-29 01:18:09] sql_flow_debug.log
+--------------------------------------------------------------------------------
+Parsed sources: ['ossbr_2_1', 'GLSXREF', 'MFSPRIC', 'tantrum', 'MFIN']
+Target: tantrum
+
+[2025-10-29 01:18:09] sql_flow_debug.log
+--------------------------------------------------------------------------------
+Built per-source CTE for ossbr_2_1:
+SELECT
+    mas.*
+FROM ossbr_2_1 mas
+LEFT JOIN GLSXREF ref1 ON mas.SRSECCODE = ref.WASTE_SECURITY_CODE
+LEFT JOIN GLSXREF ref2 ON mas.SRSECCODE = ref.sm_SECURITY_CODE
+LEFT JOIN tantrum tan ON mas.SRSECCODE = tantrum.SRSECCODE
+
+WHERE
+  -- Business Rule Block #1
+  -- NOTE: Evaluate rule -> reject the record if duplicate mas.SRSECCODE found and
+  -- NOTE: Evaluate rule -> reject the record and
+  -- NOTE: Exclusion rule -> 3) If mas.SRSTATUS <> 'A' (i.e. not active) exclude the record (no exception logging required)
+  mas.SRSTATUS = 'A'
+
+[2025-10-29 01:18:09] sql_flow_debug.log
+--------------------------------------------------------------------------------
+Built per-source CTE for GLSXREF:
+SELECT
+    mas.*
+FROM GLSXREF mas
+LEFT JOIN GLSXREF ref1 ON mas.SRSECCODE = ref.sm_SECURITY_CODE
+LEFT JOIN GLSXREF ref2 ON mas.SRSECCODE = ref.sm_SECURITY_CODE LEFT JOIN MFIN edx ON SUBSTRING (ref.SEND_CD, 4, 5) = edx.MFIN_SEND_NUMBER
+
+WHERE
+  -- Business Rule Block #1
+  -- NOTE: Evaluate rule -> reject the record if duplicate mas.SRSECCODE found and
+  -- NOTE: Evaluate rule -> reject the record and
+  -- NOTE: Exclusion rule -> 3) If mas.SRSTATUS <> 'A' (i.e. not active) exclude the record (no exception logging required)
+  mas.SRSTATUS = 'A'
+
+[2025-10-29 01:18:09] sql_flow_debug.log
+--------------------------------------------------------------------------------
+Built per-source CTE for MFSPRIC:
+SELECT
+    mas.0,
+    mas.DTL_SEND_NUM,
+    mas.AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls
+FROM MFSPRIC mas
+
+WHERE
+  -- Business Rule Block #1
+  -- NOTE: Evaluate rule -> reject the record if duplicate mas.SRSECCODE found and
+  -- NOTE: Evaluate rule -> reject the record and
+  -- NOTE: Exclusion rule -> 3) If mas.SRSTATUS <> 'A' (i.e. not active) exclude the record (no exception logging required)
+  mas.SRSTATUS = 'A'
+
+[2025-10-29 01:18:09] sql_flow_debug.log
+--------------------------------------------------------------------------------
+Built per-source CTE for tantrum:
+SELECT
+    mas.AAW{CZ,DW}/da-cprd/aaw/stage/mbs_gls,
+    mas.tantrum_family_CD
+FROM tantrum mas
+LEFT JOIN tantrum tan ON mas.SRSECCODE = tantrum.SRSECCODE
+
+[2025-10-29 01:18:09] sql_flow_debug.log
+--------------------------------------------------------------------------------
+Built per-source CTE for MFIN:
+SELECT
+    mas.*
+FROM MFIN mas
