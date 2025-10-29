@@ -1,7 +1,0 @@
-Auto-fixed 2 missing END(s) for CASE in column 'tantrumid'
-
-==== SQL VALIDATION ISSUES ====
-JOINs missing ON clause detected: 8 potential issues
-Unbalanced CASE/END blocks
-Potential undefined aliases: GLSXREF, MFSPRIC, PRC_DTL, e, edx, effective, etl, i, ossbr_2_1, start, tantrum
-
