@@ -1,0 +1,88 @@
+{
+    source.malcode: "source-schema-name",
+    source.basepath: "upper(source-schema-name)",
+    comment: "This job is responsible for loading the data into <target-tabke-name> from <source-schema-name> sources: <source-table-names> "
+
+    modules: {
+        data_sourcing_process:
+        {
+            options:
+            {
+                module: data_sourcing_process,
+                method: process
+            },
+            loggable: true,
+            sourceList: ["source-table-name1", "source-table-name2", "source_table_name3", "etc"]
+            <source-table-name1>:
+            {
+                type: sz_zone,
+                table_name: <source_table_name1>,
+                read-format: view,
+                path: ""${adls.source.root}"/<source-source_table_name1>"
+            },
+            <source-source_table_name2>:
+            {
+                type: sz_zone,
+                table_name: <source_table_name2>,
+                read-format: view,
+                path: ""${adls.source.root}"/<source-source_table_name2>"
+            },
+            <source-source_table_name3>:
+            {
+                type: sz_zone,
+                table_name: <source_table_name3>,
+                read-format: view,
+                path: ""${adls.source.root}"/<source-source_table_name3>"
+            }
+        },
+        lk_cd: {
+            sql: """
+            seelct source_value1,stndrd_cd_name,stnd_cd_value
+            from delta.`"""${adls.lookup.path}"""/caedw_standard_code_mapping_rules`
+            where (source_cd='<source-schema-name>' and stndrd_cd_name in ('target columns that end with _cd spearated by comma and enclosed in single quotes'))""",
+            loggable: true,
+            options: {
+                module: data_transformation,
+                method: process
+            }
+            "name": "lk_cd"
+        },
+
+        dt_<source_table_name1>_<source-schema-name>: {
+            sql: """select <here you will fetch all columns defined for the source table" from <source_table_name1> <where here you will apply the where conditions or filter conditions>"""
+            loggable: true,
+            options: {
+                module: data_transformation
+                method: process
+            }
+            "name": dt_<source_table_name1>_<source-schema-name>
+        },        
+        -- So, it continues in the above fashin for data transfromation for remaining source table. 
+        -- So basically the agent/script should be smart enough to understand based on input, which source table view need to be built
+        -- If source table is not dependent or referencing any other source table colum  or joining with any other source column then that table view should in the first. If it has filter condition then we should aply wehre clause when building the view for the source table
+        -- Next, the view should be built for source table which is dependent on the above built view. Steps is same as above, lie applying where or left join since it referencing the above view like that it should continue
+        -- In this manner it should continue like this till we infer and build remaining source view and come to a final view wehre we can do left join on above views to get the required columns for target table that will be used in load_enrich module
+        -- For columns ending in _cd, we should use the above lk_cd view that got built in this fashion 
+             -- under select clause it will be: "case when <sourcecolumn> is null then -3 else cast(coalesce(lk_cd.stndrd_cd_value, -4) as bigint) end as <target column name>"
+             -- and in the where clause logic will be: "LEFT JOIN on lk_cd.stndrd_cd_name='<target column name' and lk_cd.source_value1 = lower(trim(<source_column_name>))"
+             -- We will build all _cd values in the above fashion in the final view of the table before we move to load_enrich_module
+
+        load_enrich_process: {
+            options: {
+                module: load_enrich_process,
+                method: process
+            },
+            loggable: true,
+            sql: "select <all target columns that got built in final view above" from <final-view-name-that got build above in the end>"
+            target-path: ${adls.stage.root}"/"<source.malcode,
+            mode-of-write: "replace-partition",
+            keys: "",
+            cdc-flag: false,
+            scd2-flag: false,
+            partition-by": "<if last_change_dt and to_dt and effective_dt all three are there in input then use effective_dt. If no effective_dt but last_change_dt and to_dt there then use to_dt. If no to_dt, effective_date is also not there then last_change_dt>",
+            target-format": delta,
+            target-table": "/<target-table-name>",
+            name": <target-table-name>
+        }
+    }
+}
