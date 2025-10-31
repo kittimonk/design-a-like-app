@@ -1,0 +1,407 @@
+{
+  "glsxref": {
+    "alias": "glsx",
+    "known_columns": [
+      "send_cd",
+      "send_desc",
+      "waste_security_cd"
+    ],
+    "referenced_columns": [
+      "srseccode",
+      "waste_security_code",
+      "srstatus",
+      "fund_company",
+      "fund_number",
+      "dtl_send_num",
+      "send_cd",
+      "prc_dtl_send_num",
+      "sm_security_code",
+      "fund_desc",
+      "srshsbese",
+      "mfin_send_number",
+      "mfin_asset_order"
+    ],
+    "candidate_where_predicates": [
+      "qualify row_number() over (partition by mas.srseccode order by mas.srseccode) = 1",
+      "nullif(regexp_replace(trim(mas.srseccode), '\\s+', ''), '') is not null",
+      "glsx.srstatus = 'a'",
+      "not exists (select 1 from mfsp where substring(glsx.send_cd, 4, 5) = mfsp.prc_dtl_send_num)"
+    ],
+    "join_logic": [
+      "left join ossbr_2_1 glsxref ref on mas.srseccode = ref.waste_security_code"
+    ],
+    "business_rules": [
+      "qualify row_number() over (partition by mas.srseccode order by mas.srseccode) = 1",
+      "nullif(regexp_replace(trim(mas.srseccode), '\\s+', ''), '') is not null",
+      "glsx.srstatus = 'a'",
+      "not exists (select 1 from mfsp where substring(glsx.send_cd, 4, 5) = mfsp.prc_dtl_send_num)"
+    ],
+    "lineage": {
+      "source_level": [
+        "mas.srseccode",
+        "ref.waste_security_code",
+        "mas.srstatus",
+        "ref.fund_company",
+        "ref.fund_number",
+        "mfspric.dtl_send_num",
+        "glsx.send_cd",
+        "mfspric.prc_dtl_send_num",
+        "glsx.sm_security_code",
+        "glsx.fund_desc",
+        "mas.srshsbese",
+        "mfin.mfin_send_number",
+        "mfin.mfin_asset_order"
+      ]
+    },
+    "derived_columns": [
+      {
+        "name": "tantrumid",
+        "expression": "case when left(ref.send_cd, 3) = 'sbb' then case when substring(ref.send_cd, 4, 5) = mfspric.prc_dtl_send_num then null else case when substring(ref.send_cd, 4, 3) like '[0-9]%' and substring(ref.send_cd, 7, 2) = '*' then concat(230000000000, substring(ref.send_cd, 4, 3)) when len(trim(substring(ref.send_cd, 4, 5))) > 0 then concat(string_agg(format(ascii(substring(ref.send_cd, 4, 1)), '00')), '000') else concat('23000', string_agg(format(ascii(substring(ref.send_cd, 4, 1)), '00'))) end"
+      },
+      {
+        "name": "tantrum_na",
+        "expression": "case when ref.sm_security_code is not null then rtrim(ref.fund_desc) else rtrim(mas.srshsbese) end"
+      },
+      {
+        "name": "tantrum_issued_in",
+        "expression": "case when ref.sm_security_code is not null and left(ref.send_cd, 3) in ('sbm', 'sbg', 'sbs','sbb', 'sbc') then 'y' when left(mas.srshsbese, 2) = 'sb' then 'y' else 'n' end"
+      },
+      {
+        "name": "mu_fund_id",
+        "expression": "case when ref.sm_security_code is not null then ref.send_cd else '00000000' end"
+      },
+      {
+        "name": "mu_fund_family_cd",
+        "expression": "case when ref.sm_security_code is not null and left(ref.send_cd, 3) = 'sbb' then case when mfin.mfin_send_number is not null then case when mfin.mfin_asset_order = 1 then '+08830' -- mmk /n when mfin.mfin_asset_order = 2 then '+08831' -- pmmk /n when mfin.mfin_asset_order = 3 then '+08832' -- ing /n when mfin.mfin_asset_order = 4 then '+08833' -- bal /n when mfin.mfin_asset_order = 5 then '+08834' -- inx /n when mfin.mfin_asset_order = 6 then '+08835' -- cdneq /n when mfin.mfin_asset_order = 7 then '+08836' -- useq /n when mfin.mfin_asset_order = 8 then '+08837' -- sec /n when mfin.mfin_asset_order = 9 then '+08838' -- glo /n when mfin.mfin_asset_order = 10 then '+08839' -- mapm /n when mfin.mfin_asset_order = 11 then '+08840' -- map /n when mfin.mfin_asset_order = 12 then '+08841' -- map /n when mfin.mfin_asset_order = 13 then '+08842' -- gic /n when mfin.mfin_asset_order = 14 then '+12553' -- comfort /n when mfin.mfin_asset_order = 15 then '+12554' -- advantage /n when mfin.mfin_asset_order = 16 then '+12559' -- corporate /n else '-00004' -- invalid /n end"
+      }
+    ],
+    "static_assignments": []
+  },
+  "mfin": {
+    "alias": "edx",
+    "known_columns": [
+      "mfin_asset_order",
+      "mfin_send_number"
+    ],
+    "referenced_columns": [
+      "sm_security_code",
+      "send_cd",
+      "mfin_send_number",
+      "mfin_asset_order",
+      "srseccode"
+    ],
+    "candidate_where_predicates": [],
+    "join_logic": [],
+    "business_rules": [],
+    "lineage": {
+      "source_level": [
+        "glsx.sm_security_code",
+        "glsx.send_cd",
+        "mfin.mfin_send_number",
+        "mfin.mfin_asset_order",
+        "mas.srseccode"
+      ]
+    },
+    "derived_columns": [
+      {
+        "name": "mu_fund_family_cd",
+        "expression": "case when ref.sm_security_code is not null and left(ref.send_cd, 3) = 'sbb' then case when mfin.mfin_send_number is not null then case when mfin.mfin_asset_order = 1 then '+08830' -- mmk /n when mfin.mfin_asset_order = 2 then '+08831' -- pmmk /n when mfin.mfin_asset_order = 3 then '+08832' -- ing /n when mfin.mfin_asset_order = 4 then '+08833' -- bal /n when mfin.mfin_asset_order = 5 then '+08834' -- inx /n when mfin.mfin_asset_order = 6 then '+08835' -- cdneq /n when mfin.mfin_asset_order = 7 then '+08836' -- useq /n when mfin.mfin_asset_order = 8 then '+08837' -- sec /n when mfin.mfin_asset_order = 9 then '+08838' -- glo /n when mfin.mfin_asset_order = 10 then '+08839' -- mapm /n when mfin.mfin_asset_order = 11 then '+08840' -- map /n when mfin.mfin_asset_order = 12 then '+08841' -- map /n when mfin.mfin_asset_order = 13 then '+08842' -- gic /n when mfin.mfin_asset_order = 14 then '+12553' -- comfort /n when mfin.mfin_asset_order = 15 then '+12554' -- advantage /n when mfin.mfin_asset_order = 16 then '+12559' -- corporate /n else '-00004' -- invalid /n end"
+      }
+    ],
+    "static_assignments": []
+  },
+  "mfspric": {
+    "alias": "mfsp",
+    "known_columns": [
+      "dtl_send_num"
+    ],
+    "referenced_columns": [
+      "srseccode",
+      "waste_security_code",
+      "srstatus",
+      "fund_company",
+      "fund_number",
+      "dtl_send_num",
+      "send_cd",
+      "prc_dtl_send_num",
+      "sm_security_code"
+    ],
+    "candidate_where_predicates": [
+      "qualify row_number() over (partition by mas.srseccode order by mas.srseccode) = 1",
+      "nullif(regexp_replace(trim(mas.srseccode), '\\s+', ''), '') is not null",
+      "mfsp.srstatus = 'a'",
+      "not exists (select 1 from mfsp where substring(glsx.send_cd, 4, 5) = mfsp.prc_dtl_send_num)"
+    ],
+    "join_logic": [
+      "left join ossbr_2_1 glsxref ref on mas.srseccode = ref.waste_security_code"
+    ],
+    "business_rules": [
+      "qualify row_number() over (partition by mas.srseccode order by mas.srseccode) = 1",
+      "nullif(regexp_replace(trim(mas.srseccode), '\\s+', ''), '') is not null",
+      "mfsp.srstatus = 'a'",
+      "not exists (select 1 from mfsp where substring(glsx.send_cd, 4, 5) = mfsp.prc_dtl_send_num)"
+    ],
+    "lineage": {
+      "source_level": [
+        "mas.srseccode",
+        "ref.waste_security_code",
+        "mas.srstatus",
+        "ref.fund_company",
+        "ref.fund_number",
+        "mfspric.dtl_send_num",
+        "glsx.send_cd",
+        "mfspric.prc_dtl_send_num",
+        "glsx.sm_security_code"
+      ]
+    },
+    "derived_columns": [
+      {
+        "name": "tantrumid",
+        "expression": "case when left(ref.send_cd, 3) = 'sbb' then case when substring(ref.send_cd, 4, 5) = mfspric.prc_dtl_send_num then null else case when substring(ref.send_cd, 4, 3) like '[0-9]%' and substring(ref.send_cd, 7, 2) = '*' then concat(230000000000, substring(ref.send_cd, 4, 3)) when len(trim(substring(ref.send_cd, 4, 5))) > 0 then concat(string_agg(format(ascii(substring(ref.send_cd, 4, 1)), '00')), '000') else concat('23000', string_agg(format(ascii(substring(ref.send_cd, 4, 1)), '00'))) end"
+      }
+    ],
+    "static_assignments": []
+  },
+  "ossbr_2_1": {
+    "alias": "mas",
+    "known_columns": [
+      "borclass",
+      "borid",
+      "curr_type_cd",
+      "cusip",
+      "foreigndate",
+      "interestrate",
+      "maturitydate",
+      "shortdescription",
+      "srctype",
+      "srpfreq"
+    ],
+    "referenced_columns": [
+      "srseccode",
+      "waste_security_code",
+      "srstatus",
+      "fund_company",
+      "fund_number",
+      "dtl_send_num",
+      "send_cd",
+      "prc_dtl_send_num",
+      "sm_security_code",
+      "fund_desc",
+      "srshsbese",
+      "srsectype",
+      "srcurrcode",
+      "secrty_curncy_id",
+      "sbdsbdate",
+      "instr_family_cd",
+      "srpreq",
+      "srpmtrate",
+      "srcusipnbr",
+      "secrty_type_id",
+      "srsecclas"
+    ],
+    "candidate_where_predicates": [
+      "qualify row_number() over (partition by mas.srseccode order by mas.srseccode) = 1",
+      "nullif(regexp_replace(trim(mas.srseccode), '\\s+', ''), '') is not null",
+      "mas.srstatus = 'a'",
+      "not exists (select 1 from mfsp where substring(glsx.send_cd, 4, 5) = mfsp.prc_dtl_send_num)"
+    ],
+    "join_logic": [
+      "left join ossbr_2_1 glsxref ref on mas.srseccode = ref.waste_security_code"
+    ],
+    "business_rules": [
+      "qualify row_number() over (partition by mas.srseccode order by mas.srseccode) = 1",
+      "nullif(regexp_replace(trim(mas.srseccode), '\\s+', ''), '') is not null",
+      "mas.srstatus = 'a'",
+      "not exists (select 1 from mfsp where substring(glsx.send_cd, 4, 5) = mfsp.prc_dtl_send_num)"
+    ],
+    "lineage": {
+      "source_level": [
+        "mas.srseccode",
+        "ref.waste_security_code",
+        "mas.srstatus",
+        "glsxref.fund_company",
+        "ref.fund_number",
+        "mfspric.dtl_send_num",
+        "glsx.send_cd",
+        "mfspric.prc_dtl_send_num",
+        "glsx.sm_security_code",
+        "ref.sm_security_code",
+        "ref.fund_desc",
+        "mas.srshsbese",
+        "mas.srsectype",
+        "mas.srcurrcode",
+        "mas.secrty_curncy_id",
+        "mas.sbdsbdate",
+        "tantrum.instr_family_cd",
+        "mas.srpreq",
+        "tantrum.srseccode",
+        "mas.srpmtrate",
+        "mas.srcusipnbr",
+        "sm.secrty_type_id",
+        "mas.srsecclas"
+      ]
+    },
+    "derived_columns": [
+      {
+        "name": "tantrumid",
+        "expression": "case when left(ref.send_cd, 3) = 'sbb' then case when substring(ref.send_cd, 4, 5) = mfspric.prc_dtl_send_num then null else case when substring(ref.send_cd, 4, 3) like '[0-9]%' and substring(ref.send_cd, 7, 2) = '*' then concat(230000000000, substring(ref.send_cd, 4, 3)) when len(trim(substring(ref.send_cd, 4, 5))) > 0 then concat(string_agg(format(ascii(substring(ref.send_cd, 4, 1)), '00')), '000') else concat('23000', string_agg(format(ascii(substring(ref.send_cd, 4, 1)), '00'))) end"
+      },
+      {
+        "name": "tantrum_na",
+        "expression": "case when ref.sm_security_code is not null then rtrim(ref.fund_desc) else rtrim(mas.srshsbese)"
+      },
+      {
+        "name": "tantrum_family_cd",
+        "expression": "case when ref.sm_security_code is not null then case when mas.srsectype in ('380','331') then '+01313' else '+01316' end"
+      },
+      {
+        "name": "tantrum_family_cd",
+        "expression": "case when mas.srsectype = '220' then '+01312' when mas.srsectype in ('315','600','520','420','310','330','510') then '+01314' when mas.srsectype in ('551','553','555','559','567','550','556','557','570','581','554','558','568','569','573','562','530') then '+01315' when mas.srsectype in ('210','230','240') then '+01309' when mas.srsectype in ('263','265','275','260','261','270','262','276','290','295') then '+01310' else '+01316' end"
+      },
+      {
+        "name": "tantrum_issued_in",
+        "expression": "case when ref.sm_security_code is not null and left(ref.send_cd, 3) in ('sbm', 'sbg', 'sbs','sbb', 'sbc') then 'y' when left(mas.srshsbese, 2) = 'sb' then 'y' else 'n' end"
+      },
+      {
+        "name": "curncy_cd",
+        "expression": "case when mas.srcurrcode in ('bef', 'dem', 'frf', 'grd', 'tep', 'itl','nlg','pte') then '+00618' else case when mas.secrty_curncy_id in (-3,-4) then '+00616' else coalesce(get_stndrd_id('edw','edw_curncy_cd', 'n', mas.secrty_curncy_id), '+00616') end"
+      },
+      {
+        "name": "first_offer_dt",
+        "expression": "case when try_cast(mas.sbdsbdate as date) is not null and mas.sbdsbdate <> '0001-01-01' then mas.sbdsbdate else null end"
+      },
+      {
+        "name": "int_freq_cd",
+        "expression": "case -- check if tantrum_famly_cd is +01309 (mmk) or +01310 (fix) when tantrum.instr_family_cd in ('+01309', '+01310') then coalesce(get_stndrd_id('edw', 'edw_int_freq_cd', 'n', mas.srpreq),'-00001') -- default to not applicable if no standard mapping is found else '-00001' -- not applicable end"
+      },
+      {
+        "name": "int_rt",
+        "expression": "case when try_cast(mas.srpmtrate as float) is not null and mas.srpmtrate > 0 and mas.srpmtrate <= 999.99999 then mas.srpmtrate else null end"
+      },
+      {
+        "name": "erlcsh_eligbl_in",
+        "expression": "case when mas.srsectype = '210' then 'n' else 'y' end"
+      },
+      {
+        "name": "cusip_id",
+        "expression": "case when rtrim(mas.srcusipnbr) = '1' then '000000000' else mas.srcusipnbr end"
+      },
+      {
+        "name": "sm_secrty_type_id",
+        "expression": "case when try_cast(mas.srsectype as int) is not null then mas.srsectype else '+00000' end"
+      },
+      {
+        "name": "secrty_class_id",
+        "expression": "case when try_cast(mas.srsecclas as int) is not null then mas.srsecclas else '0' end"
+      }
+    ],
+    "static_assignments": [
+      {
+        "value": "mas.borid",
+        "target_column": "sm_secrty_id"
+      }
+    ]
+  },
+  "tantrum": {
+    "alias": "tant",
+    "known_columns": [
+      "tantrum_family_cd"
+    ],
+    "referenced_columns": [
+      "instr_family_cd",
+      "srpreq",
+      "srseccode",
+      "effective",
+      "date"
+    ],
+    "candidate_where_predicates": [],
+    "join_logic": [],
+    "business_rules": [],
+    "lineage": {
+      "source_level": [
+        "tantrum.instr_family_cd",
+        "mas.srpreq",
+        "mas.srseccode",
+        "tantrum.srseccode",
+        "etl.effective",
+        "start.date"
+      ]
+    },
+    "derived_columns": [
+      {
+        "name": "int_freq_cd",
+        "expression": "case -- check if tantrum_famly_cd is +01309 (mmk) or +01310 (fix) when tantrum.instr_family_cd in ('+01309', '+01310') then coalesce(get_stndrd_id('edw', 'edw_int_freq_cd', 'n', mas.srpreq),'-00001') -- default to not applicable if no standard mapping is found else '-00001' -- not applicable end"
+      }
+    ],
+    "static_assignments": [
+      {
+        "value": "'n'",
+        "target_column": "tct_issue_in"
+      },
+      {
+        "value": "0",
+        "target_column": "issuer_org_id"
+      },
+      {
+        "value": "1342",
+        "target_column": "secrty_view_cd"
+      },
+      {
+        "value": "null",
+        "target_column": "final_offer_dt"
+      },
+      {
+        "value": "114",
+        "target_column": "lifecy_cd"
+      },
+      {
+        "value": "239",
+        "target_column": "source_appl_cd"
+      },
+      {
+        "value": "331",
+        "target_column": "asset_liblty_cd"
+      },
+      {
+        "value": "0",
+        "target_column": "varble_rate_id"
+      },
+      {
+        "value": "0",
+        "target_column": "int_rate_id"
+      },
+      {
+        "value": "-2",
+        "target_column": "compnd_int_cd"
+      },
+      {
+        "value": "-2",
+        "target_column": "int_relatn_cd"
+      },
+      {
+        "value": "0",
+        "target_column": "fis_secrty_id"
+      },
+      {
+        "value": "0",
+        "target_column": "trm_prodct_id"
+      },
+      {
+        "value": "to_date('\"\"\"${etl.effective.start.date}\"\"\"', 'yyyyMMddHHmmss')",
+        "target_column": "last_change_dt"
+      },
+      {
+        "value": "to_date('9999-12-31', 'yyyy-MM-dd')",
+        "target_column": "to_dt"
+      },
+      {
+        "value": "null",
+        "target_column": "row_exclsn_dt"
+      },
+      {
+        "value": "current_timestamp()",
+        "target_column": "load_ts"
+      }
+    ]
+  }
+}

@@ -4,7 +4,7 @@
    reject the record and log an exception
 3) If mas.SRSTATUS <> 'A' (i.e. not active) exclude the record (no exception logging required)
 4) If security from GLS daily security master is found on mutual fund cross reference file (ref.WASTE_SECURITY_CODE = mas.SRSECCODE)
-   and the mutual fund is a SB Fund (1st 3 bytes of ref.FUND_COMPANY = 'SBB')
+   and the mutual fund is a SB Fund (1st 3 bytes of GLSXREF.FUND_COMPANY = 'SBB')
    then match to the mutual fund instrument price file - ref.FUND_NUMBER = MFSPRIC.DTL_SEND_NUM.
    If a match found then don't extract the record (no exception logging required - instrument already extracted by MFS extract).
 
