@@ -1,0 +1,31 @@
+lk_mcb_cd: {
+    sql: """
+    select source_value1, stndrd_cd_name, stndrd_cd_value
+    from delta.`"""${adls.lookup.path}"""/caedw_standard_code_mapping_rules`
+    where (
+        source_cd in ('MCB')
+        and stndrd_cd_name in ('curncy_cd', 'int_freq_cd', 'tantrum_family_cd')
+    )""",
+    loggable: true,
+    options: {
+        module: data_transformation,
+        method: process
+    },
+    name: lk_mcb_cd
+}
+
+lk_aaw_cd: {
+    sql: """
+    select source_value1, stndrd_cd_name, stndrd_cd_value
+    from delta.`"""${adls.lookup.path}"""/caedw_standard_code_mapping_rules`
+    where (
+        source_cd in ('AAW')
+        and stndrd_cd_name in ('int_freq_cd')
+    )""",
+    loggable: true,
+    options: {
+        module: data_transformation,
+        method: process
+    },
+    name: lk_aaw_cd
+}
