@@ -1,0 +1,38 @@
+{
+    source.malcode: "aaw",
+    source.basepath: "AAW",
+    comment: "This job is responsible for loading the data into tantrum from aaw sources: tantrum"
+
+    source.malcode1: "mcb",
+    source.basepath1: "MCB",
+    comment1: "This job is responsible for loading the data into tantrum from mcb sources: ossbr_2_1"
+
+    modules: {
+        data_sourcing_process:
+        {
+            options:
+            {
+                module: data_sourcing_process,
+                method: process
+            },
+            loggable: true,
+            sourceList: ["tantrum", "ossbr_2_1"]
+
+            tantrum:
+            {
+                type: sz_zone,
+                table_name: tantrum,
+                read-format: view,
+                path: "${adls.source.root}/tantrum"
+            }
+
+            ossbr_2_1:
+            {
+                type: sz_zone,
+                table_name: ossbr_2_1,
+                read-format: view,
+                path: "${adls.source.root1}/ossbr_2_1"
+            }
+        }
+    }
+}
