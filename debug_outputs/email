@@ -1,0 +1,12 @@
+Subject:
+📘 Draft Plan Tracker – Phase 2 Data Migration to New Subscription
+Body:
+Hi Team,
+Please find attached the draft plan tracker for the data migration to the new subscription as part of Phase 2.
+This version includes the activities discussed last week for Azure SQL DB and Azure Synapse. After discussions with Jack (Team1) and others regarding the existing data migration approach for these services, we are exploring the option to leverage the EDP release flow to move data from the old subscription to the new one.
+For ADLS, the approach is still being evaluated — it’s not yet confirmed whether we’ll use AzCopy or another method to migrate existing data.
+For now, the tracker outlines a high-level list of tasks required to complete the migration. Since this is our first time using EDP flow for cross-subscription migration, there may be additional steps that will be finalized after further discussions with Team1 and ARE teams.
+If it’s confirmed that we own the data (and not ITTE), we’ll also need to incorporate the additional data-related activities outlined by XYZ into this plan.
+Given the current constraints — no lower environment available and tight project timelines — we will need a leadership decision on whether to proceed with a direct production migration using EDP or consider any limited validation run before the actual cutover.
+As per Team1’s prior experience, the EDP flow for 1–2 TB within the same subscription completed in about 40 minutes. Since both old and new subscriptions are in the same region with VNet peering already in place, we anticipate a similar or slightly higher runtime (approximately one hour), though this would need confirmation once the approach is finalized.
+Please review and share feedback or any additional steps that should be captured before we finalize the plan. Your input will also help determine the next steps and approval path for the migration execution approach.
