@@ -1,0 +1,160 @@
+{
+  "base_entity": "tantrum",
+  "joins": [
+    "left join ossbr_2_1 mas on mas.srseccode = glsx.waste_security_code"
+  ],
+  "business_rules": [
+    "not exists (select 1 from mfsp where substring(glsx.send_cd, 4, 5) = mfsp.prc_dtl_send_num)"
+  ],
+  "columns": [
+    {
+      "target": "tantrumid",
+      "expression": "case when left(glsx.send_cd, 3) = 'sbb' then case when substring(glsx.send_cd, 4, 5) = mfspric.prc_dtl_send_num then null else case when substring(glsx.send_cd, 4, 3) like '[0-9]%' and substring(glsx.send_cd, 7, 2) = '*' then concat(230000000000, substring(glsx.send_cd, 4, 3)) when len(trim(substring(glsx.send_cd, 4, 5))) > 0 then concat(string_agg(format(ascii(substring(glsx.send_cd, 4, 1)), '00')), '000') else concat('23000', string_agg(format(ascii(substring(glsx.send_cd, 4, 1)), '00'))) end"
+    },
+    {
+      "target": "tantrum_na",
+      "expression": "case when glsx.sm_security_code is not null then rtrim(glsx.fund_desc) else rtrim(mas.srshsbese) end"
+    },
+    {
+      "target": "tantrum_issued_in",
+      "expression": "case when glsx.sm_security_code is not null and left(glsx.send_cd, 3) in ('sbm', 'sbg', 'sbs','sbb', 'sbc') then 'y' when left(mas.srshsbese, 2) = 'sb' then 'y' else 'n' end"
+    },
+    {
+      "target": "mu_fund_id",
+      "expression": "case when glsx.sm_security_code is not null then glsx.send_cd else '00000000' end"
+    },
+    {
+      "target": "mu_fund_family_cd",
+      "expression": "case when glsx.sm_security_code is not null and left(glsx.send_cd, 3) = 'sbb' then case when mfin.mfin_send_number is not null then case when mfin.mfin_asset_order = 1 then '+08830' -- mmk /n when mfin.mfin_asset_order = 2 then '+08831' -- pmmk /n when mfin.mfin_asset_order = 3 then '+08832' -- ing /n when mfin.mfin_asset_order = 4 then '+08833' -- bal /n when mfin.mfin_asset_order = 5 then '+08834' -- inx /n when mfin.mfin_asset_order = 6 then '+08835' -- cdneq /n when mfin.mfin_asset_order = 7 then '+08836' -- useq /n when mfin.mfin_asset_order = 8 then '+08837' -- sec /n when mfin.mfin_asset_order = 9 then '+08838' -- glo /n when mfin.mfin_asset_order = 10 then '+08839' -- mapm /n when mfin.mfin_asset_order = 11 then '+08840' -- map /n when mfin.mfin_asset_order = 12 then '+08841' -- map /n when mfin.mfin_asset_order = 13 then '+08842' -- gic /n when mfin.mfin_asset_order = 14 then '+12553' -- comfort /n when mfin.mfin_asset_order = 15 then '+12554' -- advantage /n when mfin.mfin_asset_order = 16 then '+12559' -- corporate /n else '-00004' -- invalid /n end"
+    },
+    {
+      "target": "tantrum_family_cd",
+      "expression": "case when glsx.sm_security_code is not null then case when mas.srsectype in ('380','331') then '+01313' else '+01316' end"
+    },
+    {
+      "target": "curncy_cd",
+      "expression": "case when mas.srcurrcode in ('bef', 'dem', 'frf', 'grd', 'tep', 'itl','nlg','pte') then '+00618' else case when mas.secrty_curncy_id in (-3,-4) then '+00616' else coalesce(get_stndrd_id('edw','edw_curncy_cd', 'n', mas.secrty_curncy_id), '+00616') end"
+    },
+    {
+      "target": "first_offer_dt",
+      "expression": "case when try_cast(mas.sbdsbdate as date) is not null and mas.sbdsbdate <> '0001-01-01' then mas.sbdsbdate else null end",
+      "datatype": "DATE"
+    },
+    {
+      "target": "int_freq_cd",
+      "expression": "case -- check if tantrum_famly_cd is +01309 (mmk) or +01310 (fix) when tantrum.instr_family_cd in ('+01309', '+01310') then coalesce(get_stndrd_id('edw', 'edw_int_freq_cd', 'n', mas.srpreq),'-00001') -- default to not applicable if no standard mapping is found else '-00001' -- not applicable end"
+    },
+    {
+      "target": "int_rt",
+      "expression": "case when try_cast(mas.srpmtrate as float) is not null and mas.srpmtrate > 0 and mas.srpmtrate <= 999.99999 then mas.srpmtrate else null end"
+    },
+    {
+      "target": "erlcsh_eligbl_in",
+      "expression": "case when mas.srsectype = '210' then 'n' else 'y' end"
+    },
+    {
+      "target": "cusip_id",
+      "expression": "case when rtrim(mas.srcusipnbr) = '1' then '000000000' else mas.srcusipnbr end"
+    },
+    {
+      "target": "sm_secrty_type_id",
+      "expression": "case when try_cast(mas.srsectype as int) is not null then mas.srsectype else '+00000' end",
+      "datatype": "BIGINT"
+    },
+    {
+      "target": "secrty_class_id",
+      "expression": "case when try_cast(mas.srsecclas as int) is not null then mas.srsecclas else '0' end",
+      "datatype": "BIGINT"
+    },
+    {
+      "target": "sm_secrty_id",
+      "expression": "CAST('mas.borid' AS STRING)",
+      "datatype": "STRING"
+    },
+    {
+      "target": "tct_issue_in",
+      "expression": "CAST('n' AS STRING)",
+      "datatype": "STRING"
+    },
+    {
+      "target": "issuer_org_id",
+      "expression": "CAST(0 AS BIGINT)",
+      "datatype": "BIGINT"
+    },
+    {
+      "target": "secrty_view_cd",
+      "expression": "CAST(1342 AS BIGINT)",
+      "datatype": "BIGINT"
+    },
+    {
+      "target": "final_offer_dt",
+      "expression": "CAST(null AS STRING)",
+      "datatype": "STRING"
+    },
+    {
+      "target": "lifecy_cd",
+      "expression": "CAST(114 AS BIGINT)",
+      "datatype": "BIGINT"
+    },
+    {
+      "target": "source_appl_cd",
+      "expression": "CAST(239 AS BIGINT)",
+      "datatype": "BIGINT"
+    },
+    {
+      "target": "asset_liblty_cd",
+      "expression": "CAST(331 AS BIGINT)",
+      "datatype": "BIGINT"
+    },
+    {
+      "target": "varble_rate_id",
+      "expression": "CAST(0 AS BIGINT)",
+      "datatype": "BIGINT"
+    },
+    {
+      "target": "int_rate_id",
+      "expression": "CAST(0 AS BIGINT)",
+      "datatype": "BIGINT"
+    },
+    {
+      "target": "compnd_int_cd",
+      "expression": "CAST(-2 AS BIGINT)",
+      "datatype": "BIGINT"
+    },
+    {
+      "target": "int_relatn_cd",
+      "expression": "CAST(-2 AS BIGINT)",
+      "datatype": "BIGINT"
+    },
+    {
+      "target": "fis_secrty_id",
+      "expression": "CAST(0 AS BIGINT)",
+      "datatype": "BIGINT"
+    },
+    {
+      "target": "trm_prodct_id",
+      "expression": "CAST(0 AS BIGINT)",
+      "datatype": "BIGINT"
+    },
+    {
+      "target": "last_change_dt",
+      "expression": "to_date('\"\"\"${etl.effective.start.date}\"\"\"', 'yyyyMMddHHmmss')",
+      "datatype": "DATE"
+    },
+    {
+      "target": "to_dt",
+      "expression": "to_date('9999-12-31', 'yyyy-MM-dd')",
+      "datatype": "DATE"
+    },
+    {
+      "target": "row_exclsn_dt",
+      "expression": "CAST(null AS STRING)",
+      "datatype": "STRING"
+    },
+    {
+      "target": "load_ts",
+      "expression": "CAST('current_timestamp()' AS TIMESTAMP)",
+      "datatype": "TIMESTAMP"
+    }
+  ]
+}

@@ -1,0 +1,87 @@
+dt_tantrum_mcb: {
+  sql: """
+WITH step_joined AS (
+  SELECT
+      mas.srseccode AS mas_srseccode,
+      mas.waste_security_code AS mas_waste_security_code,
+      mas.srstatus AS mas_srstatus,
+      mas.fund_company AS mas_fund_company,
+      mas.fund_number AS mas_fund_number,
+      mas.dtl_send_num AS mas_dtl_send_num,
+      mas.send_cd AS mas_send_cd,
+      mas.prc_dtl_send_num AS mas_prc_dtl_send_num,
+      mas.sm_security_code AS mas_sm_security_code,
+      mas.fund_desc AS mas_fund_desc,
+      mas.srshsbese AS mas_srshsbese,
+      mas.srsectype AS mas_srsectype,
+      mas.srcurrcode AS mas_srcurrcode,
+      mas.secrty_curncy_id AS mas_secrty_curncy_id,
+      mas.sbdsbdate AS mas_sbdsbdate,
+      mas.instr_family_cd AS mas_instr_family_cd,
+      mas.srpreq AS mas_srpreq,
+      mas.srpmtrate AS mas_srpmtrate,
+      mas.srcusipnbr AS mas_srcusipnbr,
+      mas.secrty_type_id AS mas_secrty_type_id,
+      mas.srsecclas AS mas_srsecclas,
+      ref.srseccode AS ref_srseccode
+  FROM ossbr_2_1 mas
+  LEFT JOIN GLSXREF ref ON mas.srseccode = ref.srseccode
+  WHERE qualify row_number() over (partition by mas.srseccode order by mas.srseccode) = 1 AND nullif(regexp_replace(trim(mas.srseccode), '\s+', ''), '') is not null AND mas.srstatus = 'a'
+)
+SELECT
+    CASE
+  WHEN LEFT(ref.SEND_CD, 3) = 'SBB' THEN
+    CASE
+      WHEN SUBSTRING(ref.SEND_CD, 4, 5) = MFSPRIC.PRC_DTL_SEND_NUM THEN NULL
+      ELSE
+        CASE
+          WHEN SUBSTRING(ref.SEND_CD, 4, 3) LIKE '[0-9]%' AND SUBSTRING(ref.SEND_CD, 7, 2) = '*' THEN CONCAT(230000000000, SUBSTRING(ref.SEND_CD, 4, 3))
+          WHEN LEN(TRIM(SUBSTRING(ref.SEND_CD, 4, 5))) > 0 THEN CONCAT(STRING_AGG(FORMAT(ASCII(SUBSTRING(ref.SEND_CD, 4, 1)), '00')), '000')
+          ELSE CONCAT('23000', STRING_AGG(FORMAT(ASCII(SUBSTRING(ref.SEND_CD, 4, 1)), '00')))
+        END
+    END
+  ELSE CONCAT('500', STRING_AGG(FORMAT(ASCII(mas.SRSECCODE), '00')))
+END AS tantrum_id AS tantrumid,
+    CASE WHEN ref.sm_SECURITY_CODE IS NOT NULL THEN RTRIM(ref.FUND_DESC) ELSE RTRIM(mas.SRSHSBESE) END AS tantrum_na AS tantrum_na,
+    CASE WHEN ref.sm_SECURITY_CODE IS NOT NULL THEN CASE WHEN mas.SRSECTYPE IN ('380','331') THEN '+01313' ELSE '+01316' END ELSE CASE WHEN mas.SRSECTYPE = '220' THEN '+01312' WHEN mas.SRSECTYPE IN ('315','600','520','420','310','330','510') THEN '+01314'  WHEN mas.SRSECTYPE IN ('551','553','555','559','567','550','556','557','570','581','554','558','568','569','573','562','530') THEN '+01315' WHEN mas.SRSECTYPE IN ('210','230','240') THEN '+01309' WHEN mas.SRSECTYPE IN ('263','265','275','260','261','270','262','276','290','295') THEN '+01310' ELSE '+01316'  END END AS tantrum_family_cd AS tantrum_family_CD,
+    CASE WHEN ref.sm_SECURITY_CODE IS NOT NULL AND LEFT(ref.SEND_CD, 3) IN ('SBM', 'SBG', 'SBS','SBB', 'SBC') THEN 'Y' WHEN LEFT(mas.SRSHSBESE, 2) = 'SB' THEN 'Y' ELSE 'N' END AS tantrum_issued_in AS tantrum_issued_in,
+    'N' AS tct_issue_in,
+    0 AS issuer_org_id,
+    Set to +01342 (DB). AS secrty_view_CD,
+    CASE WHEN mas.SRCURRCODE IN ('BEF', 'DEM', 'FRF', 'GRD', 'TEP', 'ITL','NLG','PTE') THEN '+00618' ELSE CASE WHEN mas.secrty_curncy_id IN (-3,-4) THEN '+00616' ELSE COALESCE(get_stndrd_id('EDW','EDW_CURNCY_CD', 'N', mas.secrty_curncy_id), '+00616') END END AS CURNCY_CD AS curncy_CD,
+    CASE WHEN TRY_CAST(mas.SBDSBDATE AS DATE) IS NOT NULL AND mas.SBDSBDATE <> '0001-01-01' THEN mas.SBDSBDATE ELSE NULL END AS FIRST_OFFER_DT AS first_offer_dt,
+    NULL AS final_offer_dt,
+    Set to +00114 (Active). AS lifecy_CD,
+    Set to +00239 (GLS) AS source_appl_CD,
+    Set to +00331 (Asset). AS asset_liblty_CD,
+    0 AS varble_rate_id,
+    CASE -- Check if tantrum_FAMLY_CD is +01309 (MMK) or +01310 (FIX) 
+ WHEN tantrum.INSTR_FAMILY_CD IN ('+01309', '+01310') THEN COALESCE(get_stndrd_id('EDW', 'EDW_INT_FREQ_CD', 'N', mas.SRPREQ),'-00001') -- Default to Not Applicable if no standard mapping is found 
+ ELSE '-00001' -- Not Applicable 
+ END AS INT_FREQ_CD AS int_freq_CD,
+    TRY_CAST(CASE WHEN TRY_CAST(mas.SRPMTRATE AS FLOAT) IS NOT NULL AND mas.SRPMTRATE > 0 AND mas.SRPMTRATE <= 999.99999 THEN mas.SRPMTRATE ELSE NULL END AS INT_RT AS DECIMAL(17,2)) AS int_rt,
+    0 AS int_rate_id,
+    CASE WHEN mas.SRSECTYPE = '210' THEN 'N' ELSE 'Y' END AS ERLCSH_ELIGBL_IN AS erlcsh_eligbl_in,
+    Set to -2 (No Source). AS compnd_int_CD,
+    Set to -2 (No Source). AS int_relatn_CD,
+    CASE WHEN ref.sm_SECURITY_CODE IS NOT NULL THEN ref.SEND_CD ELSE '00000000' END AS mu_fund_ID AS mu_fund_id,
+    CASE WHEN ref.sm_SECURITY_CODE IS NOT NULL AND LEFT(ref.SEND_CD, 3) = 'SBB' THEN CASE WHEN MFIN.MFIN_SEND_NUMBER IS NOT NULL THEN CASE WHEN MFIN.MFIN_ASSET_ORDER = 1 THEN '+08830' -- MMK /n WHEN MFIN.MFIN_ASSET_ORDER = 2 THEN '+08831' -- PMMK /n WHEN MFIN.MFIN_ASSET_ORDER = 3 THEN '+08832' -- ING /n WHEN MFIN.MFIN_ASSET_ORDER = 4 THEN '+08833' -- BAL /n WHEN MFIN.MFIN_ASSET_ORDER = 5 THEN '+08834' -- INX /n WHEN MFIN.MFIN_ASSET_ORDER = 6 THEN '+08835' -- CDNEQ /n WHEN MFIN.MFIN_ASSET_ORDER = 7 THEN '+08836' -- USEQ /n WHEN MFIN.MFIN_ASSET_ORDER = 8 THEN '+08837' -- SEC /n WHEN MFIN.MFIN_ASSET_ORDER = 9 THEN '+08838' -- GLO /n WHEN MFIN.MFIN_ASSET_ORDER = 10 THEN '+08839' -- MAPM /n WHEN MFIN.MFIN_ASSET_ORDER = 11 THEN '+08840' -- MAP /n WHEN MFIN.MFIN_ASSET_ORDER = 12 THEN '+08841' -- MAP /n WHEN MFIN.MFIN_ASSET_ORDER = 13 THEN '+08842' -- GIC /n WHEN MFIN.MFIN_ASSET_ORDER = 14 THEN '+12553' -- COMFORT /n WHEN MFIN.MFIN_ASSET_ORDER = 15 THEN '+12554' -- ADVANTAGE /n WHEN MFIN.MFIN_ASSET_ORDER = 16 THEN '+12559' -- CORPORATE /n ELSE '-00004' -- Invalid /n END ELSE '-00001' -- Not Applicable /n END ELSE '-00001' -- Not Applicable /n END AS mu_fund_FAMILY_CD AS mu_fund_family_CD,
+    CASE WHEN RTRIM(mas.SRCUSIPNBR) = '1' THEN '000000000' ELSE mas.SRCUSIPNBR END AS CUSIP_ID AS cusip_id,
+    Straight move (if date field then set Fromat source date as YYYY-MM-DD) AS sm_secrty_id,
+    CASE WHEN TRY_CAST(mas.SRSECTYPE AS INT) IS NOT NULL THEN mas.SRSECTYPE ELSE '+00000' END AS sm.SECRTY_TYPE_ID AS sm_secrty_type_id,
+    0 AS fis_secrty_id,
+    NULL AS fis_paper_type_CD,
+    0 AS trm_prodct_id,
+    CASE WHEN TRY_CAST(mas.SRSECCLAS AS INT) IS NOT NULL THEN mas.SRSECCLAS ELSE '0' END AS SECRTY_CLASS_ID AS secrty_class_id,
+    NULL AS sumary_combin_id,
+    NULL AS term_family_CD,
+    etl.effective.start.date in the fromat yyyy-mm-dd AS last_change_dt,
+    '9999-12-31' and cast it as date AS to_dt,
+    NULL AS row_exclsn_dt,
+    set to current_timestamp() AS load_ts
+FROM step_joined s
+""",
+  loggable: true,
+  options: { module: data_transformation, method: process },
+  name: "dt_tantrum_mcb"
+}

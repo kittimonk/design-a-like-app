@@ -1,8 +1,10 @@
 {
   "base_entity": "ossbr_2_1",
   "joins": [
+    "left join ossbr_2_1 mas on mas.srseccode = glsx.waste_security_code",
     "LEFT JOIN glsxref glsx ON mas.srseccode = glsx.waste_security_code",
-    "LEFT JOIN mfspric mfsp ON substring(glsx.send_cd, 4, 5) = mfsp.prc_dtl_send_num"
+    "LEFT JOIN mfspric mfsp ON substring(glsx.send_cd, 4, 5) = mfsp.prc_dtl_send_num",
+    "LEFT JOIN mfspric ON substring(glsx.send_cd, 4, 5) = mfspric.prc_dtl_send_num"
   ],
   "business_rules": [
     "qualify row_number() over (partition by mas.srseccode order by mas.srseccode) = 1",

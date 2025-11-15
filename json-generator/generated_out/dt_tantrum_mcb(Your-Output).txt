@@ -1,0 +1,214 @@
+dt_tantrum_mcb: {
+  sql: """
+WITH step_joined AS (
+  SELECT
+      -- mas (ossbr_2_1) explicit columns
+      mas.srseccode            AS mas_srseccode,
+      mas.srstatus             AS mas_srstatus,
+      mas.srshsbese            AS mas_srshsbese,
+      mas.srsectype            AS mas_srsectype,
+      mas.srcurrcode           AS mas_srcurrcode,
+      mas.secrty_curncy_id     AS mas_secrty_curncy_id,
+      mas.sbdsbdate            AS mas_sbdsbdate,
+      mas.srpreq               AS mas_srpreq,
+      mas.srpmtrate            AS mas_srpmtrate,
+      mas.srcusipnbr           AS mas_srcusipnbr,
+      mas.srsecclas            AS mas_srsecclas,
+      mas.borid                AS mas_borid,
+
+      -- ref (GLSXREF) explicit columns
+      ref.waste_security_code  AS ref_waste_security_code,
+      ref.fund_company         AS ref_fund_company,
+      ref.fund_number          AS ref_fund_number,
+      ref.send_cd              AS ref_send_cd,
+      ref.prc_dtl_send_num     AS ref_prc_dtl_send_num,
+      ref.sm_security_code     AS ref_sm_security_code,
+      ref.fund_desc            AS ref_fund_desc,
+
+      -- mfsp (MFSPRIC)
+      mfsp.prc_dtl_send_num    AS mfsp_prc_dtl_send_num,
+
+      -- mfin (MFIN)
+      mfin.mfin_send_number    AS mfin_mfin_send_number,
+      mfin.mfin_asset_order    AS mfin_mfin_asset_order
+
+  FROM ossbr_2_1 mas
+  /* from CSV join clauses + rule text */
+  LEFT JOIN GLSXREF ref
+         ON mas.SRSECCODE = ref.WASTE_SECURITY_CODE
+  LEFT JOIN MFSPRIC mfsp
+         ON SUBSTRING(ref.SEND_CD, 4, 5) = mfsp.PRC_DTL_SEND_NUM
+  LEFT JOIN MFIN mfin
+         ON SUBSTRING(ref.SEND_CD, 4, 5) = mfin.MFIN_SEND_NUMBER
+
+  /* business rules only from v7c (not free-form CSV text) */
+  WHERE qualify row_number() over (partition by mas.srseccode order by mas.srseccode) = 1
+    AND nullif(regexp_replace(trim(mas.srseccode), '\s+', ''), '') IS NOT NULL
+    AND mas.srstatus = 'A'
+)
+SELECT
+    /* tantrumid (JSON-derived, precedence over CSV noise) */
+    CASE
+      WHEN LEFT(ref_send_cd, 3) = 'SBB' THEN
+        CASE
+          WHEN SUBSTRING(ref_send_cd, 4, 5) = mfsp_prc_dtl_send_num THEN NULL
+          ELSE CASE
+                 WHEN SUBSTRING(ref_send_cd, 4, 3) LIKE '[0-9]%'
+                  AND SUBSTRING(ref_send_cd, 7, 2) = '*'
+                    THEN CONCAT(230000000000, SUBSTRING(ref_send_cd, 4, 3))
+                 WHEN LEN(TRIM(SUBSTRING(ref_send_cd, 4, 5))) > 0
+                    THEN CONCAT(STRING_AGG(FORMAT(ASCII(SUBSTRING(ref_send_cd, 4, 1)), '00')), '000')
+                 ELSE CONCAT('23000', STRING_AGG(FORMAT(ASCII(SUBSTRING(ref_send_cd, 4, 1)), '00')))
+               END
+        END
+      ELSE CONCAT('500', STRING_AGG(FORMAT(ASCII(mas_srseccode), '00')))
+    END                                               AS tantrumid,
+
+    /* tantrum_na */
+    CASE WHEN ref_sm_security_code IS NOT NULL
+         THEN RTRIM(ref_fund_desc)
+         ELSE RTRIM(mas_srshsbese)
+    END                                               AS tantrum_na,
+
+    /* tantrum_family_cd */
+    CASE
+      WHEN ref_sm_security_code IS NOT NULL THEN
+        CASE WHEN mas_srsectype IN ('380','331') THEN '+01313' ELSE '+01316' END
+      ELSE
+        CASE
+          WHEN mas_srsectype = '220' THEN '+01312'
+          WHEN mas_srsectype IN ('315','600','520','420','310','330','510') THEN '+01314'
+          WHEN mas_srsectype IN ('551','553','555','559','567','550','556','557','570','581','554','558','568','569','573','562','530') THEN '+01315'
+          WHEN mas_srsectype IN ('210','230','240') THEN '+01309'
+          WHEN mas_srsectype IN ('263','265','275','260','261','270','262','276','290','295') THEN '+01310'
+          ELSE '+01316'
+        END
+    END                                               AS tantrum_family_cd,
+
+    /* tantrum_issued_in */
+    CASE
+      WHEN ref_sm_security_code IS NOT NULL
+        AND LEFT(ref_send_cd, 3) IN ('SBM','SBG','SBS','SBB','SBC') THEN 'Y'
+      WHEN LEFT(mas_srshsbese, 2) = 'SB' THEN 'Y'
+      ELSE 'N'
+    END                                               AS tantrum_issued_in,
+
+    /* mu_fund_id */
+    CASE WHEN ref_sm_security_code IS NOT NULL
+         THEN ref_send_cd
+         ELSE '00000000'
+    END                                               AS mu_fund_id,
+
+    /* mu_fund_family_cd (JSON-derived; MFIN mapping) */
+    CASE
+      WHEN ref_sm_security_code IS NOT NULL AND LEFT(ref_send_cd, 3) = 'SBB' THEN
+        CASE
+          WHEN mfin_mfin_send_number IS NOT NULL THEN
+            CASE mfin_mfin_asset_order
+              WHEN  1 THEN '+08830'
+              WHEN  2 THEN '+08831'
+              WHEN  3 THEN '+08832'
+              WHEN  4 THEN '+08833'
+              WHEN  5 THEN '+08834'
+              WHEN  6 THEN '+08835'
+              WHEN  7 THEN '+08836'
+              WHEN  8 THEN '+08837'
+              WHEN  9 THEN '+08838'
+              WHEN 10 THEN '+08839'
+              WHEN 11 THEN '+08840'
+              WHEN 12 THEN '+08841'
+              WHEN 13 THEN '+08842'
+              WHEN 14 THEN '+12553'
+              WHEN 15 THEN '+12554'
+              WHEN 16 THEN '+12559'
+              ELSE '-00004'
+            END
+          ELSE '-00001'
+        END
+      ELSE '-00001'
+    END                                               AS mu_fund_family_cd,
+
+    /* curncy_cd */
+    CASE
+      WHEN LOWER(mas_srcurrcode) IN ('bef','dem','frf','grd','tep','itl','nlg','pte') THEN '+00618'
+      ELSE CASE
+             WHEN mas_secrty_curncy_id IN (-3,-4) THEN '+00616'
+             ELSE COALESCE(get_stndrd_id('edw','edw_curncy_cd','n',mas_secrty_curncy_id), '+00616')
+           END
+    END                                               AS curncy_cd,
+
+    /* first_offer_dt */
+    CASE
+      WHEN TRY_CAST(mas_sbdsbdate AS DATE) IS NOT NULL AND mas_sbdsbdate <> '0001-01-01'
+        THEN CAST(mas_sbdsbdate AS DATE)
+      ELSE NULL
+    END                                               AS first_offer_dt,
+
+    /* int_freq_cd (JSON-derived default) */
+    CASE
+      /* If you feed tantrum.instr_family_cd later, this will auto-elevate */
+      WHEN '+01309' IN (/* placeholder for tantrum.instr_family_cd */) THEN COALESCE(get_stndrd_id('edw','edw_int_freq_cd','n',mas_srpreq), '-00001')
+      WHEN '+01310' IN (/* placeholder for tantrum.instr_family_cd */) THEN COALESCE(get_stndrd_id('edw','edw_int_freq_cd','n',mas_srpreq), '-00001')
+      ELSE '-00001'
+    END                                               AS int_freq_cd,
+
+    /* int_rt */
+    CASE
+      WHEN TRY_CAST(mas_srpmtrate AS DOUBLE) IS NOT NULL
+       AND mas_srpmtrate > 0
+       AND mas_srpmtrate <= 999.99999
+        THEN TRY_CAST(mas_srpmtrate AS DECIMAL(17,5))
+      ELSE NULL
+    END                                               AS int_rt,
+
+    /* erlcsh_eligbl_in */
+    CASE WHEN mas_srsectype = '210' THEN 'N' ELSE 'Y' END AS erlcsh_eligbl_in,
+
+    /* cusip_id */
+    CASE WHEN RTRIM(mas_srcusipnbr) = '1' THEN '000000000' ELSE mas_srcusipnbr END AS cusip_id,
+
+    /* sm_secrty_type_id */
+    CASE
+      WHEN TRY_CAST(mas_srsectype AS INT) IS NOT NULL
+        THEN CAST(mas_srsectype AS BIGINT)
+      ELSE CAST('+00000' AS BIGINT)
+    END                                               AS sm_secrty_type_id,
+
+    /* secrty_class_id */
+    CASE
+      WHEN TRY_CAST(mas_srsecclas AS INT) IS NOT NULL
+        THEN CAST(mas_srsecclas AS BIGINT)
+      ELSE CAST('0' AS BIGINT)
+    END                                               AS secrty_class_id,
+
+    /* straight move (JSON static): sm_secrty_id = mas.borid */
+    CAST(mas_borid AS STRING)                         AS sm_secrty_id,
+
+    /* JSON static assignments */
+    'N'                                               AS tct_issue_in,
+    CAST(0 AS BIGINT)                                 AS issuer_org_id,
+    CAST(1342 AS BIGINT)                              AS secrty_view_cd,
+    CAST(NULL AS DATE)                                AS final_offer_dt,
+    CAST(114 AS BIGINT)                               AS lifecy_cd,
+    CAST(239 AS BIGINT)                               AS source_appl_cd,
+    CAST(331 AS BIGINT)                               AS asset_liblty_cd,
+    CAST(0 AS BIGINT)                                 AS varble_rate_id,
+    CAST(0 AS BIGINT)                                 AS int_rate_id,
+    CAST(-2 AS BIGINT)                                AS compnd_int_cd,
+    CAST(-2 AS BIGINT)                                AS int_relatn_cd,
+    CAST(0 AS BIGINT)                                 AS fis_secrty_id,
+    CAST(0 AS BIGINT)                                 AS trm_prodct_id,
+    to_date('"""${etl.effective.start.date}"""', 'yyyyMMddHHmmss') AS last_change_dt,
+    to_date('9999-12-31', 'yyyy-MM-dd')               AS to_dt,
+    CAST(NULL AS DATE)                                AS row_exclsn_dt,
+    current_timestamp()                               AS load_ts
+
+FROM step_joined s
+  """,
+  loggable: true,
+  options: {
+    module: data_transformation,
+    method: process
+  },
+  name: "dt_tantrum_mcb"
+}

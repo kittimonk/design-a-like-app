@@ -1,7 +1,7 @@
 {
   "base_entity": "ossbr_2_1",
   "joins": [
-    "LEFT JOIN glsxref glsx ON mas.srseccode = glsx.waste_security_code",
+    "left join ossbr_2_1 mas on mas.srseccode = glsx.waste_security_code",
     "LEFT JOIN mfspric mfsp ON substring(glsx.send_cd, 4, 5) = mfsp.prc_dtl_send_num"
   ],
   "business_rules": [
@@ -26,7 +26,7 @@
     {
       "target": "tantrum_issued_in",
       "expression": "case when glsx.sm_security_code is not null and left(glsx.send_cd, 3) in ('sbm', 'sbg', 'sbs','sbb', 'sbc') then 'y' when left(mas.srshsbese, 2) = 'sb' then 'y' else 'n' end",
-      "datatype": "BIGINT"
+      "datatype": "STRING"
     },
     {
       "target": "mu_fund_id",
@@ -39,6 +39,16 @@
       "datatype": "BIGINT"
     },
     {
+      "target": "tantrum_na",
+      "expression": "case when glsx.sm_security_code is not null then rtrim(glsx.fund_desc) else rtrim(mas.srshsbese)",
+      "datatype": "STRING"
+    },
+    {
+      "target": "tantrum_family_cd",
+      "expression": "case when glsx.sm_security_code is not null then case when mas.srsectype in ('380','331') then '+01313' else '+01316' end",
+      "datatype": "BIGINT"
+    },
+    {
       "target": "tantrum_family_cd",
       "expression": "case when mas.srsectype = '220' then '+01312' when mas.srsectype in ('315','600','520','420','310','330','510') then '+01314' when mas.srsectype in ('551','553','555','559','567','550','556','557','570','581','554','558','568','569','573','562','530') then '+01315' when mas.srsectype in ('210','230','240') then '+01309' when mas.srsectype in ('263','265','275','260','261','270','262','276','290','295') then '+01310' else '+01316' end",
       "datatype": "BIGINT"
@@ -46,7 +56,7 @@
     {
       "target": "curncy_cd",
       "expression": "case when mas.srcurrcode in ('bef', 'dem', 'frf', 'grd', 'tep', 'itl','nlg','pte') then '+00618' else case when mas.secrty_curncy_id in (-3,-4) then '+00616' else coalesce(get_stndrd_id('edw','edw_curncy_cd', 'n', mas.secrty_curncy_id), '+00616') end",
-      "datatype": "BIGINT"
+      "datatype": "STRING"
     },
     {
       "target": "first_offer_dt",
@@ -56,7 +66,7 @@
     {
       "target": "int_freq_cd",
       "expression": "case -- check if tantrum_famly_cd is +01309 (mmk) or +01310 (fix) when tantrum.instr_family_cd in ('+01309', '+01310') then coalesce(get_stndrd_id('edw', 'edw_int_freq_cd', 'n', mas.srpreq),'-00001') -- default to not applicable if no standard mapping is found else '-00001' -- not applicable end",
-      "datatype": "BIGINT"
+      "datatype": "STRING"
     },
     {
       "target": "int_rt",
@@ -66,7 +76,7 @@
     {
       "target": "erlcsh_eligbl_in",
       "expression": "case when mas.srsectype = '210' then 'n' else 'y' end",
-      "datatype": "BIGINT"
+      "datatype": "STRING"
     },
     {
       "target": "cusip_id",

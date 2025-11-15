@@ -1,8 +1,9 @@
 {
   "base_entity": "ossbr_2_1",
   "joins": [
-    "LEFT JOIN glsxref glsx ON mas.srseccode = glsx.waste_security_code",
-    "LEFT JOIN mfspric mfsp ON substring(glsx.send_cd, 4, 5) = mfsp.prc_dtl_send_num"
+    "left join ossbr_2_1 mas on mas.srseccode = glsx.waste_security_code",
+    "LEFT JOIN mfspric mfsp ON substring(glsx.send_cd, 4, 5) = mfsp.prc_dtl_send_num",
+    "LEFT JOIN mfspric ON substring(glsx.send_cd, 4, 5) = mfspric.prc_dtl_send_num"
   ],
   "business_rules": [
     "qualify row_number() over (partition by mas.srseccode order by mas.srseccode) = 1",
@@ -36,6 +37,16 @@
     {
       "target": "mu_fund_family_cd",
       "expression": "case when glsx.sm_security_code is not null and left(glsx.send_cd, 3) = 'sbb' then case when mfin.mfin_send_number is not null then case when mfin.mfin_asset_order = 1 then '+08830' -- mmk /n when mfin.mfin_asset_order = 2 then '+08831' -- pmmk /n when mfin.mfin_asset_order = 3 then '+08832' -- ing /n when mfin.mfin_asset_order = 4 then '+08833' -- bal /n when mfin.mfin_asset_order = 5 then '+08834' -- inx /n when mfin.mfin_asset_order = 6 then '+08835' -- cdneq /n when mfin.mfin_asset_order = 7 then '+08836' -- useq /n when mfin.mfin_asset_order = 8 then '+08837' -- sec /n when mfin.mfin_asset_order = 9 then '+08838' -- glo /n when mfin.mfin_asset_order = 10 then '+08839' -- mapm /n when mfin.mfin_asset_order = 11 then '+08840' -- map /n when mfin.mfin_asset_order = 12 then '+08841' -- map /n when mfin.mfin_asset_order = 13 then '+08842' -- gic /n when mfin.mfin_asset_order = 14 then '+12553' -- comfort /n when mfin.mfin_asset_order = 15 then '+12554' -- advantage /n when mfin.mfin_asset_order = 16 then '+12559' -- corporate /n else '-00004' -- invalid /n end",
+      "datatype": "BIGINT"
+    },
+    {
+      "target": "tantrum_na",
+      "expression": "case when glsx.sm_security_code is not null then rtrim(glsx.fund_desc) else rtrim(mas.srshsbese)",
+      "datatype": "STRING"
+    },
+    {
+      "target": "tantrum_family_cd",
+      "expression": "case when glsx.sm_security_code is not null then case when mas.srsectype in ('380','331') then '+01313' else '+01316' end",
       "datatype": "BIGINT"
     },
     {
