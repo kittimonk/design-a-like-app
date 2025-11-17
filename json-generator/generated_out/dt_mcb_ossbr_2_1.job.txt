@@ -1,0 +1,53 @@
+dt_mcb_ossbr_2_1:
+  {
+    sql: """SELECT
+    case when left(glsx.send_cd, 3) = 'sbb' then case when substring(glsx.send_cd, 4, 5) = mfspric.prc_dtl_send_num then null else case when substring(glsx.send_cd, 4, 3) like '[0-9]%' and substring(glsx.send_cd, 7, 2) = '*' then concat(230000000000, substring(glsx.send_cd, 4, 3)) when len(trim(substring(glsx.send_cd, 4, 5))) > 0 then concat(string_agg(format(ascii(substring(glsx.send_cd, 4, 1)), '00')), '000') else concat('23000', string_agg(format(ascii(substring(glsx.send_cd, 4, 1)), '00'))) end AS tantrumid,
+    case when glsx.sm_security_code is not null then rtrim(glsx.fund_desc) else rtrim(mas.srshsbese) end AS tantrum_na,
+    case when glsx.sm_security_code is not null and left(glsx.send_cd, 3) in ('sbm', 'sbg', 'sbs','sbb', 'sbc') then 'y' when left(mas.srshsbese, 2) = 'sb' then 'y' else 'n' end AS tantrum_issued_in,
+    case when glsx.sm_security_code is not null then glsx.send_cd else '00000000' end AS mu_fund_id,
+    case when glsx.sm_security_code is not null and left(glsx.send_cd, 3) = 'sbb' then case when mfin.mfin_send_number is not null then case when mfin.mfin_asset_order = 1 then '+08830' -- mmk /n when mfin.mfin_asset_order = 2 then '+08831' -- pmmk /n when mfin.mfin_asset_order = 3 then '+08832' -- ing /n when mfin.mfin_asset_order = 4 then '+08833' -- bal /n when mfin.mfin_asset_order = 5 then '+08834' -- inx /n when mfin.mfin_asset_order = 6 then '+08835' -- cdneq /n when mfin.mfin_asset_order = 7 then '+08836' -- useq /n when mfin.mfin_asset_order = 8 then '+08837' -- sec /n when mfin.mfin_asset_order = 9 then '+08838' -- glo /n when mfin.mfin_asset_order = 10 then '+08839' -- mapm /n when mfin.mfin_asset_order = 11 then '+08840' -- map /n when mfin.mfin_asset_order = 12 then '+08841' -- map /n when mfin.mfin_asset_order = 13 then '+08842' -- gic /n when mfin.mfin_asset_order = 14 then '+12553' -- comfort /n when mfin.mfin_asset_order = 15 then '+12554' -- advantage /n when mfin.mfin_asset_order = 16 then '+12559' -- corporate /n else '-00004' -- invalid /n end AS mu_fund_family_cd,
+    case when mas.srsectype = '220' then '+01312' when mas.srsectype in ('315','600','520','420','310','330','510') then '+01314' when mas.srsectype in ('551','553','555','559','567','550','556','557','570','581','554','558','568','569','573','562','530') then '+01315' when mas.srsectype in ('210','230','240') then '+01309' when mas.srsectype in ('263','265','275','260','261','270','262','276','290','295') then '+01310' else '+01316' end AS tantrum_family_cd,
+    case when mas.srcurrcode in ('bef', 'dem', 'frf', 'grd', 'tep', 'itl','nlg','pte') then '+00618' else case when mas.secrty_curncy_id in (-3,-4) then '+00616' else coalesce(get_stndrd_id('edw','edw_curncy_cd', 'n', mas.secrty_curncy_id), '+00616') end AS curncy_cd,
+    case when try_cast(mas.sbdsbdate as date) is not null and mas.sbdsbdate <> '0001-01-01' then mas.sbdsbdate else null end AS first_offer_dt,
+    case -- check if tantrum_famly_cd is +01309 (mmk) or +01310 (fix) when tantrum.instr_family_cd in ('+01309', '+01310') then coalesce(get_stndrd_id('edw', 'edw_int_freq_cd', 'n', mas.srpreq),'-00001') -- default to not applicable if no standard mapping is found else '-00001' -- not applicable end AS int_freq_cd,
+    case when try_cast(mas.srpmtrate as float) is not null and mas.srpmtrate > 0 and mas.srpmtrate <= 999.99999 then mas.srpmtrate else null end AS int_rt,
+    case when mas.srsectype = '210' then 'n' else 'y' end AS erlcsh_eligbl_in,
+    case when rtrim(mas.srcusipnbr) = '1' then '000000000' else mas.srcusipnbr end AS cusip_id,
+    case when try_cast(mas.srsectype as int) is not null then mas.srsectype else '+00000' end AS sm_secrty_type_id,
+    case when try_cast(mas.srsecclas as int) is not null then mas.srsecclas else '0' end AS secrty_class_id,
+    CAST(mas.borid AS STRING) AS sm_secrty_id,
+    CAST('n' AS STRING) AS tct_issue_in,
+    TRY_CAST(0 AS BIGINT) AS issuer_org_id,
+    TRY_CAST(1342 AS BIGINT) AS secrty_view_cd,
+    CAST(null AS STRING) AS final_offer_dt,
+    TRY_CAST(114 AS BIGINT) AS lifecy_cd,
+    TRY_CAST(239 AS BIGINT) AS source_appl_cd,
+    TRY_CAST(331 AS BIGINT) AS asset_liblty_cd,
+    TRY_CAST(0 AS BIGINT) AS varble_rate_id,
+    TRY_CAST(0 AS BIGINT) AS int_rate_id,
+    TRY_CAST(-2 AS BIGINT) AS compnd_int_cd,
+    TRY_CAST(-2 AS BIGINT) AS int_relatn_cd,
+    TRY_CAST(0 AS BIGINT) AS fis_secrty_id,
+    TRY_CAST(0 AS BIGINT) AS trm_prodct_id,
+    CAST(to_date('"""${etl.effective.start.date}"""', 'yyyyMMddHHmmss') AS DATE) AS last_change_dt,
+    CAST(to_date('9999-12-31', 'yyyy-MM-dd') AS DATE) AS to_dt,
+    CAST(null AS STRING) AS row_exclsn_dt,
+    CAST(current_timestamp() AS TIMESTAMP) AS load_ts
+FROM ossbr_2_1 mas
+LEFT JOIN glsxref glsx ON mas.srseccode = glsx.waste_security_code
+LEFT JOIN mfspric mfsp ON substring(glsx.send_cd, 4, 5) = mfsp.prc_dtl_send_num
+WHERE
+  nullif(regexp_replace(trim(mas.srseccode), '\s+', ''), '') is not null
+  AND glsx.srstatus = 'a'
+  AND not exists (select 1 from mfsp where substring(glsx.send_cd, 4, 5) = mfsp.prc_dtl_send_num)
+  AND mfsp.srstatus = 'a'
+  AND mas.srstatus = 'a'
+QUALIFY
+  row_number() over (partition by mas.srseccode order by mas.srseccode) = 1"""
+    loggable: true
+    options: {
+      module: data_transformation
+      method: process
+    }
+    name: "dt_mcb_ossbr_2_1"
+  }
