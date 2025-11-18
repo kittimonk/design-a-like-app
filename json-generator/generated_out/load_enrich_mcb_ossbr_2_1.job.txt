@@ -1,0 +1,17 @@
+load_enrich_process:{
+  Options: {
+    module: load_enrich_process
+    method: process
+  }
+  loggable: true
+  sql: "SELECT tantrumid, tantrum_na, tantrum_issued_in, mu_fund_id, mu_fund_family_cd, tantrum_family_cd, curncy_cd, first_offer_dt, int_freq_cd, int_rt, erlcsh_eligbl_in, cusip_id, sm_secrty_type_id, secrty_class_id, sm_secrty_id, tct_issue_in, issuer_org_id, secrty_view_cd, final_offer_dt, lifecy_cd, source_appl_cd, asset_liblty_cd, varble_rate_id, int_rate_id, compnd_int_cd, int_relatn_cd, fis_secrty_id, trm_prodct_id, last_change_dt, to_dt, row_exclsn_dt, load_ts FROM dt_mcb_ossbr_2_1"
+  target-path: ${adls.stage.root}/${mcb}
+  mode-of-write: "replace-partition"
+  keys: ""
+  cdc-flag: false
+  scd2-flag: false
+  partition-by: "to_dt"
+  target-format: delta
+  target_table: "/tantrum"
+  name: tantrum
+}
