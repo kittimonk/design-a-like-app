@@ -146,26 +146,26 @@ def build_load_enrich_block(
     cols_sql = ", ".join(select_columns)
     sql_stmt = f"SELECT {cols_sql} FROM {view_name}"
 
-    target_path = f"${{adls.stage.root}}/${{{malcode}}}".replace("{malcode}", malcode)
+    target_path = f"${{adls.stage.root}}/${{source_malcode}}" #.replace("{malcode}", malcode)
 
     # If no partition column could be found, keep it empty string
     partition_by = f'"{partition_col}"' if partition_col else '""'
 
     block = f"""load_enrich_process:{{
-  Options: {{
-    module: load_enrich_process
+  options: {{
+    module: load_enrich_process,
     method: process
-  }}
-  loggable: true
+  }},
+  loggable: true,
   sql: "{sql_stmt}"
-  target-path: {target_path}
-  mode-of-write: "replace-partition"
-  keys: ""
-  cdc-flag: false
-  scd2-flag: false
-  partition-by: {partition_by}
-  target-format: delta
-  target_table: "/{target_table}"
+  target-path: {target_path},
+  mode-of-write: "replace-partition",
+  keys: "",
+  cdc-flag: false,
+  scd2-flag: false,
+  partition-by: {partition_by},
+  target-format: delta,
+  target_table: "/{target_table}",
   name: {target_table}
 }}
 """
