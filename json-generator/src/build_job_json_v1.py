@@ -27,7 +27,7 @@ def build_job_block(model, sql_obj, malcode):
     block.append(f'    sql: """{sql_text}"""')
     block.append("    loggable: true,")
     block.append("    options: {")
-    block.append("      module: data_transformation")
+    block.append("      module: data_transformation,")
     block.append("      method: process")
     block.append("    },")
     block.append(f'    "name": "{job_name}"')
