@@ -44,10 +44,10 @@ WHERE
   AND mas.srstatus = 'a'
 QUALIFY
   row_number() over (partition by mas.srseccode order by mas.srseccode) = 1"""
-    loggable: true
+    loggable: true,
     options: {
       module: data_transformation
       method: process
-    }
-    name: "dt_mcb_ossbr_2_1"
+    },
+    "name": "dt_mcb_ossbr_2_1"
   }
