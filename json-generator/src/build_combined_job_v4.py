@@ -31,7 +31,7 @@ def trim_data_sourcing_to_keep_modules_open(ds_text: str) -> str:
         )
 
     # Index of the '}' that closes data_sourcing_process (3rd from the end)
-    cutoff = brace_indices[-3]
+    cutoff = brace_indices[-3] + 1  # +1 to include that line
     kept_lines = lines[:cutoff + 1]
     return "\n".join(kept_lines)
 
