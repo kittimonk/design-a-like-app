@@ -104,17 +104,18 @@ def build_output_block(df: pd.DataFrame) -> str:
                 combined_sources.append(t)
 
     sl = ", ".join([f"\"{t}\"" for t in combined_sources])
-    lines.append(f"            sourceList: [{sl}]")
+    lines.append(f"            sourceList: [{sl}],")
 
     table_to_root_idx = {}
     for idx, mal in enumerate(seen_order):
         for t in sorted(malcode_to_tables[mal]):
             table_to_root_idx.setdefault(t, idx)
 
-    for t in combined_sources:
+    # Emit each source block and add a trailing comma for all but the last block
+    for i, t in enumerate(combined_sources):
         root_suffix = "" if table_to_root_idx[t] == 0 else str(table_to_root_idx[t])
         root_var = "${adls.source.root}" if root_suffix == "" else f"${{adls.source.root{root_suffix}}}"
-        lines.extend([
+        block = [
             "",
             f"            {t}:",
             "            {",
@@ -122,8 +123,9 @@ def build_output_block(df: pd.DataFrame) -> str:
             f"                table_name: {t},",
             "                read-format: view,",
             f"                path: \"{root_var}/" + f"{t}\"",
-            "            }"
-        ])
+            "            }" + ("," if i != len(combined_sources) - 1 else "")
+        ]
+        lines.extend(block)
 
     lines.extend(["        }", "    }", "}"])
     return "\n".join(lines) + "\n"
