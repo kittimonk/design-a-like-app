@@ -31,7 +31,7 @@ def build_job_block(model, sql_obj, malcode):
     block.append("      method: process")
     block.append("    },")
     block.append(f'    "name": "{job_name}"')
-    block.append("  }")
+    block.append("  },")
 
     return "\n".join(block)
 
