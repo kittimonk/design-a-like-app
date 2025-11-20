@@ -1,0 +1,94 @@
+{
+    source.malcode: "mcb",
+    source.basepath: "MCB",
+    comment: "This job is responsible for loading the data into tantrum from mcb sources: ossbr_2_1"
+
+    source.malcode1: "aaw",
+    source.basepath1: "AAW",
+    comment1: "This job is responsible for loading the data into tantrum from aaw sources: tantrum"
+
+    modules: {
+        data_sourcing_process:
+        {
+            options:
+            {
+                module: data_sourcing_process,
+                method: process
+            },
+            loggable: true,
+            sourceList: ["ossbr_2_1", "tantrum"],
+
+            ossbr_2_1:
+            {
+                type: sz_zone,
+                table_name: ossbr_2_1,
+                read-format: view,
+                path: "${adls.source.root}/ossbr_2_1"
+            },
+
+            tantrum:
+            {
+                type: sz_zone,
+                table_name: tantrum,
+                read-format: view,
+                path: "${adls.source.root1}/tantrum"
+            }
+        },
+
+        dt_mcb_ossbr_2_1:
+          {
+            sql: """SELECT
+            case when left(ref.send_cd, 3) = 'sbb' then case when substring(ref.send_cd, 4, 5) = mfspric.prc_dtl_send_num then null else case when substring(ref.send_cd, 4, 3) like '[0-9]%' and substring(ref.send_cd, 7, 2) = '*' then concat(230000000000, substring(ref.send_cd, 4, 3)) when len(trim(substring(ref.send_cd, 4, 5))) > 0 then concat(string_agg(format(ascii(substring(ref.send_cd, 4, 1)), '00')), '000') else concat('23000', string_agg(format(ascii(substring(ref.send_cd, 4, 1)), '00'))) end AS tantrumid,
+            case when ref.sm_security_code is not null then rtrim(ref.fund_desc) else rtrim(mas.srshsbese) end AS tantrum_na,
+            case when ref.sm_security_code is not null and left(ref.send_cd, 3) in ('sbm', 'sbg', 'sbs','sbb', 'sbc') then 'y' when left(mas.srshsbese, 2) = 'sb' then 'y' else 'n' end AS tantrum_issued_in,
+            case when ref.sm_security_code is not null then ref.send_cd else '00000000' end AS mu_fund_id,
+            case when ref.sm_security_code is not null and left(ref.send_cd, 3) = 'sbb' then case when mfin.mfin_send_number is not null then case when mfin.mfin_asset_order = 1 then '+08830' -- mmk /n when mfin.mfin_asset_order = 2 then '+08831' -- pmmk /n when mfin.mfin_asset_order = 3 then '+08832' -- ing /n when mfin.mfin_asset_order = 4 then '+08833' -- bal /n when mfin.mfin_asset_order = 5 then '+08834' -- inx /n when mfin.mfin_asset_order = 6 then '+08835' -- cdneq /n when mfin.mfin_asset_order = 7 then '+08836' -- useq /n when mfin.mfin_asset_order = 8 then '+08837' -- sec /n when mfin.mfin_asset_order = 9 then '+08838' -- glo /n when mfin.mfin_asset_order = 10 then '+08839' -- mapm /n when mfin.mfin_asset_order = 11 then '+08840' -- map /n when mfin.mfin_asset_order = 12 then '+08841' -- map /n when mfin.mfin_asset_order = 13 then '+08842' -- gic /n when mfin.mfin_asset_order = 14 then '+12553' -- comfort /n when mfin.mfin_asset_order = 15 then '+12554' -- advantage /n when mfin.mfin_asset_order = 16 then '+12559' -- corporate /n else '-00004' -- invalid /n end AS mu_fund_family_cd,
+            case when mas.srsectype = '220' then '+01312' when mas.srsectype in ('315','600','520','420','310','330','510') then '+01314' when mas.srsectype in ('551','553','555','559','567','550','556','557','570','581','554','558','568','569','573','562','530') then '+01315' when mas.srsectype in ('210','230','240') then '+01309' when mas.srsectype in ('263','265','275','260','261','270','262','276','290','295') then '+01310' else '+01316' end AS tantrum_family_cd,
+            case when mas.srcurrcode in ('bef', 'dem', 'frf', 'grd', 'tep', 'itl','nlg','pte') then '+00618' else case when mas.secrty_curncy_id in (-3,-4) then '+00616' else coalesce(get_stndrd_id('edw','edw_curncy_cd', 'n', mas.secrty_curncy_id), '+00616') end AS curncy_cd,
+            case when try_cast(mas.sbdsbdate as date) is not null and mas.sbdsbdate <> '0001-01-01' then mas.sbdsbdate else null end AS first_offer_dt,
+            case -- check if tantrum_famly_cd is +01309 (mmk) or +01310 (fix) when tantrum.instr_family_cd in ('+01309', '+01310') then coalesce(get_stndrd_id('edw', 'edw_int_freq_cd', 'n', mas.srpreq),'-00001') -- default to not applicable if no standard mapping is found else '-00001' -- not applicable end AS int_freq_cd,
+            case when try_cast(mas.srpmtrate as float) is not null and mas.srpmtrate > 0 and mas.srpmtrate <= 999.99999 then mas.srpmtrate else null end AS int_rt,
+            case when mas.srsectype = '210' then 'n' else 'y' end AS erlcsh_eligbl_in,
+            case when rtrim(mas.srcusipnbr) = '1' then '000000000' else mas.srcusipnbr end AS cusip_id,
+            case when try_cast(mas.srsectype as int) is not null then mas.srsectype else '+00000' end AS sm_secrty_type_id,
+            case when try_cast(mas.srsecclas as int) is not null then mas.srsecclas else '0' end AS secrty_class_id,
+            CAST(mas.borid AS STRING) AS sm_secrty_id
+        FROM ossbr_2_1 mas
+        left join ossbr_2_1 glsxref ref on mas.srseccode = ref.waste_security_code
+        LEFT JOIN mfspric mfsp ON substring(glsx.send_cd, 4, 5) = mfsp.prc_dtl_send_num
+        LEFT JOIN mfspric ON substring(ref.send_cd, 4, 5) = mfspric.prc_dtl_send_num
+        WHERE
+          nullif(regexp_replace(trim(mas.srseccode), '\s+', ''), '') is not null
+          AND glsx.srstatus = 'a'
+          AND not exists (select 1 from mfsp where substring(glsx.send_cd, 4, 5) = mfsp.prc_dtl_send_num)
+          AND mfsp.srstatus = 'a'
+          AND mas.srstatus = 'a'
+        QUALIFY
+          row_number() over (partition by mas.srseccode order by mas.srseccode) = 1"""
+            loggable: true,
+            options: {
+              module: data_transformation,
+              method: process
+            },
+            "name": "dt_mcb_ossbr_2_1"
+          },
+
+        load_enrich_process:{
+          options: {
+            module: load_enrich_process,
+            method: process
+          },
+          loggable: true,
+          sql: "SELECT tantrumid, tantrum_na, tantrum_issued_in, mu_fund_id, mu_fund_family_cd, tantrum_family_cd, curncy_cd, first_offer_dt, int_freq_cd, int_rt, erlcsh_eligbl_in, cusip_id, sm_secrty_type_id, secrty_class_id, sm_secrty_id FROM dt_mcb_ossbr_2_1"
+          target-path: ${adls.stage.root}/${source_malcode},
+          mode-of-write: "replace-partition",
+          keys: "",
+          cdc-flag: false,
+          scd2-flag: false,
+          partition-by: "",
+          target-format: delta,
+          target_table: "/tantrum",
+          name: tantrum
+        }
+    }
+}
