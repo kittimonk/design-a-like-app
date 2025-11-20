@@ -4,7 +4,12 @@
     "known_columns": [
       "send_cd",
       "send_desc",
-      "waste_security_cd"
+      "waste_security_cd",
+      "fund_company",
+      "fund_number",
+      "sm_security_code",
+      "fund_desc",
+      "srstatus"
     ],
     "referenced_columns": [
       "srseccode",
@@ -28,7 +33,7 @@
       "not exists (select 1 from mfsp where substring(glsx.send_cd, 4, 5) = mfsp.prc_dtl_send_num)"
     ],
     "join_logic": [
-      "left join ossbr_2_1 glsxref ref on mas.srseccode = ref.waste_security_code"
+      "left join ossbr_2_1 mas on mas.srseccode = glsx.waste_security_code"
     ],
     "business_rules": [
       "qualify row_number() over (partition by mas.srseccode order by mas.srseccode) = 1",
@@ -39,10 +44,10 @@
     "lineage": {
       "source_level": [
         "mas.srseccode",
-        "ref.waste_security_code",
+        "glsx.waste_security_code",
         "mas.srstatus",
-        "ref.fund_company",
-        "ref.fund_number",
+        "glsx.fund_company",
+        "glsx.fund_number",
         "mfspric.dtl_send_num",
         "glsx.send_cd",
         "mfspric.prc_dtl_send_num",
@@ -56,29 +61,29 @@
     "derived_columns": [
       {
         "name": "tantrumid",
-        "expression": "case when left(ref.send_cd, 3) = 'sbb' then case when substring(ref.send_cd, 4, 5) = mfspric.prc_dtl_send_num then null else case when substring(ref.send_cd, 4, 3) like '[0-9]%' and substring(ref.send_cd, 7, 2) = '*' then concat(230000000000, substring(ref.send_cd, 4, 3)) when len(trim(substring(ref.send_cd, 4, 5))) > 0 then concat(string_agg(format(ascii(substring(ref.send_cd, 4, 1)), '00')), '000') else concat('23000', string_agg(format(ascii(substring(ref.send_cd, 4, 1)), '00'))) end"
+        "expression": "case when left(glsx.send_cd, 3) = 'sbb' then case when substring(glsx.send_cd, 4, 5) = mfspric.prc_dtl_send_num then null else case when substring(glsx.send_cd, 4, 3) like '[0-9]%' and substring(glsx.send_cd, 7, 2) = '*' then concat(230000000000, substring(glsx.send_cd, 4, 3)) when len(trim(substring(glsx.send_cd, 4, 5))) > 0 then concat(string_agg(format(ascii(substring(glsx.send_cd, 4, 1)), '00')), '000') else concat('23000', string_agg(format(ascii(substring(glsx.send_cd, 4, 1)), '00'))) end"
       },
       {
         "name": "tantrum_na",
-        "expression": "case when ref.sm_security_code is not null then rtrim(ref.fund_desc) else rtrim(mas.srshsbese) end"
+        "expression": "case when glsx.sm_security_code is not null then rtrim(glsx.fund_desc) else rtrim(mas.srshsbese) end"
       },
       {
         "name": "tantrum_issued_in",
-        "expression": "case when ref.sm_security_code is not null and left(ref.send_cd, 3) in ('sbm', 'sbg', 'sbs','sbb', 'sbc') then 'y' when left(mas.srshsbese, 2) = 'sb' then 'y' else 'n' end"
+        "expression": "case when glsx.sm_security_code is not null and left(glsx.send_cd, 3) in ('sbm', 'sbg', 'sbs','sbb', 'sbc') then 'y' when left(mas.srshsbese, 2) = 'sb' then 'y' else 'n' end"
       },
       {
         "name": "mu_fund_id",
-        "expression": "case when ref.sm_security_code is not null then ref.send_cd else '00000000' end"
+        "expression": "case when glsx.sm_security_code is not null then glsx.send_cd else '00000000' end"
       },
       {
         "name": "mu_fund_family_cd",
-        "expression": "case when ref.sm_security_code is not null and left(ref.send_cd, 3) = 'sbb' then case when mfin.mfin_send_number is not null then case when mfin.mfin_asset_order = 1 then '+08830' -- mmk /n when mfin.mfin_asset_order = 2 then '+08831' -- pmmk /n when mfin.mfin_asset_order = 3 then '+08832' -- ing /n when mfin.mfin_asset_order = 4 then '+08833' -- bal /n when mfin.mfin_asset_order = 5 then '+08834' -- inx /n when mfin.mfin_asset_order = 6 then '+08835' -- cdneq /n when mfin.mfin_asset_order = 7 then '+08836' -- useq /n when mfin.mfin_asset_order = 8 then '+08837' -- sec /n when mfin.mfin_asset_order = 9 then '+08838' -- glo /n when mfin.mfin_asset_order = 10 then '+08839' -- mapm /n when mfin.mfin_asset_order = 11 then '+08840' -- map /n when mfin.mfin_asset_order = 12 then '+08841' -- map /n when mfin.mfin_asset_order = 13 then '+08842' -- gic /n when mfin.mfin_asset_order = 14 then '+12553' -- comfort /n when mfin.mfin_asset_order = 15 then '+12554' -- advantage /n when mfin.mfin_asset_order = 16 then '+12559' -- corporate /n else '-00004' -- invalid /n end"
+        "expression": "case when glsx.sm_security_code is not null and left(glsx.send_cd, 3) = 'sbb' then case when mfin.mfin_send_number is not null then case when mfin.mfin_asset_order = 1 then '+08830' -- mmk /n when mfin.mfin_asset_order = 2 then '+08831' -- pmmk /n when mfin.mfin_asset_order = 3 then '+08832' -- ing /n when mfin.mfin_asset_order = 4 then '+08833' -- bal /n when mfin.mfin_asset_order = 5 then '+08834' -- inx /n when mfin.mfin_asset_order = 6 then '+08835' -- cdneq /n when mfin.mfin_asset_order = 7 then '+08836' -- useq /n when mfin.mfin_asset_order = 8 then '+08837' -- sec /n when mfin.mfin_asset_order = 9 then '+08838' -- glo /n when mfin.mfin_asset_order = 10 then '+08839' -- mapm /n when mfin.mfin_asset_order = 11 then '+08840' -- map /n when mfin.mfin_asset_order = 12 then '+08841' -- map /n when mfin.mfin_asset_order = 13 then '+08842' -- gic /n when mfin.mfin_asset_order = 14 then '+12553' -- comfort /n when mfin.mfin_asset_order = 15 then '+12554' -- advantage /n when mfin.mfin_asset_order = 16 then '+12559' -- corporate /n else '-00004' -- invalid /n end"
       }
     ],
     "static_assignments": []
   },
   "mfin": {
-    "alias": "edx",
+    "alias": "mfin",
     "known_columns": [
       "mfin_asset_order",
       "mfin_send_number"
@@ -105,7 +110,7 @@
     "derived_columns": [
       {
         "name": "mu_fund_family_cd",
-        "expression": "case when ref.sm_security_code is not null and left(ref.send_cd, 3) = 'sbb' then case when mfin.mfin_send_number is not null then case when mfin.mfin_asset_order = 1 then '+08830' -- mmk /n when mfin.mfin_asset_order = 2 then '+08831' -- pmmk /n when mfin.mfin_asset_order = 3 then '+08832' -- ing /n when mfin.mfin_asset_order = 4 then '+08833' -- bal /n when mfin.mfin_asset_order = 5 then '+08834' -- inx /n when mfin.mfin_asset_order = 6 then '+08835' -- cdneq /n when mfin.mfin_asset_order = 7 then '+08836' -- useq /n when mfin.mfin_asset_order = 8 then '+08837' -- sec /n when mfin.mfin_asset_order = 9 then '+08838' -- glo /n when mfin.mfin_asset_order = 10 then '+08839' -- mapm /n when mfin.mfin_asset_order = 11 then '+08840' -- map /n when mfin.mfin_asset_order = 12 then '+08841' -- map /n when mfin.mfin_asset_order = 13 then '+08842' -- gic /n when mfin.mfin_asset_order = 14 then '+12553' -- comfort /n when mfin.mfin_asset_order = 15 then '+12554' -- advantage /n when mfin.mfin_asset_order = 16 then '+12559' -- corporate /n else '-00004' -- invalid /n end"
+        "expression": "case when glsx.sm_security_code is not null and left(glsx.send_cd, 3) = 'sbb' then case when mfin.mfin_send_number is not null then case when mfin.mfin_asset_order = 1 then '+08830' -- mmk /n when mfin.mfin_asset_order = 2 then '+08831' -- pmmk /n when mfin.mfin_asset_order = 3 then '+08832' -- ing /n when mfin.mfin_asset_order = 4 then '+08833' -- bal /n when mfin.mfin_asset_order = 5 then '+08834' -- inx /n when mfin.mfin_asset_order = 6 then '+08835' -- cdneq /n when mfin.mfin_asset_order = 7 then '+08836' -- useq /n when mfin.mfin_asset_order = 8 then '+08837' -- sec /n when mfin.mfin_asset_order = 9 then '+08838' -- glo /n when mfin.mfin_asset_order = 10 then '+08839' -- mapm /n when mfin.mfin_asset_order = 11 then '+08840' -- map /n when mfin.mfin_asset_order = 12 then '+08841' -- map /n when mfin.mfin_asset_order = 13 then '+08842' -- gic /n when mfin.mfin_asset_order = 14 then '+12553' -- comfort /n when mfin.mfin_asset_order = 15 then '+12554' -- advantage /n when mfin.mfin_asset_order = 16 then '+12559' -- corporate /n else '-00004' -- invalid /n end"
       }
     ],
     "static_assignments": []
@@ -113,7 +118,9 @@
   "mfspric": {
     "alias": "mfsp",
     "known_columns": [
-      "dtl_send_num"
+      "dtl_send_num",
+      "prc_dtl_send_num",
+      "srstatus"
     ],
     "referenced_columns": [
       "srseccode",
@@ -133,7 +140,7 @@
       "not exists (select 1 from mfsp where substring(glsx.send_cd, 4, 5) = mfsp.prc_dtl_send_num)"
     ],
     "join_logic": [
-      "left join ossbr_2_1 glsxref ref on mas.srseccode = ref.waste_security_code"
+      "left join ossbr_2_1 mas on mas.srseccode = glsx.waste_security_code"
     ],
     "business_rules": [
       "qualify row_number() over (partition by mas.srseccode order by mas.srseccode) = 1",
@@ -144,10 +151,10 @@
     "lineage": {
       "source_level": [
         "mas.srseccode",
-        "ref.waste_security_code",
+        "glsx.waste_security_code",
         "mas.srstatus",
-        "ref.fund_company",
-        "ref.fund_number",
+        "glsx.fund_company",
+        "glsx.fund_number",
         "mfspric.dtl_send_num",
         "glsx.send_cd",
         "mfspric.prc_dtl_send_num",
@@ -157,7 +164,7 @@
     "derived_columns": [
       {
         "name": "tantrumid",
-        "expression": "case when left(ref.send_cd, 3) = 'sbb' then case when substring(ref.send_cd, 4, 5) = mfspric.prc_dtl_send_num then null else case when substring(ref.send_cd, 4, 3) like '[0-9]%' and substring(ref.send_cd, 7, 2) = '*' then concat(230000000000, substring(ref.send_cd, 4, 3)) when len(trim(substring(ref.send_cd, 4, 5))) > 0 then concat(string_agg(format(ascii(substring(ref.send_cd, 4, 1)), '00')), '000') else concat('23000', string_agg(format(ascii(substring(ref.send_cd, 4, 1)), '00'))) end"
+        "expression": "case when left(glsx.send_cd, 3) = 'sbb' then case when substring(glsx.send_cd, 4, 5) = mfspric.prc_dtl_send_num then null else case when substring(glsx.send_cd, 4, 3) like '[0-9]%' and substring(glsx.send_cd, 7, 2) = '*' then concat(230000000000, substring(glsx.send_cd, 4, 3)) when len(trim(substring(glsx.send_cd, 4, 5))) > 0 then concat(string_agg(format(ascii(substring(glsx.send_cd, 4, 1)), '00')), '000') else concat('23000', string_agg(format(ascii(substring(glsx.send_cd, 4, 1)), '00'))) end"
       }
     ],
     "static_assignments": []
@@ -196,7 +203,7 @@
       "srpreq",
       "srpmtrate",
       "srcusipnbr",
-      "secrty_type_id",
+      "sm_secrty_type_id",
       "srsecclas"
     ],
     "candidate_where_predicates": [
@@ -206,7 +213,7 @@
       "not exists (select 1 from mfsp where substring(glsx.send_cd, 4, 5) = mfsp.prc_dtl_send_num)"
     ],
     "join_logic": [
-      "left join ossbr_2_1 glsxref ref on mas.srseccode = ref.waste_security_code"
+      "left join ossbr_2_1 mas on mas.srseccode = glsx.waste_security_code"
     ],
     "business_rules": [
       "qualify row_number() over (partition by mas.srseccode order by mas.srseccode) = 1",
@@ -217,16 +224,16 @@
     "lineage": {
       "source_level": [
         "mas.srseccode",
-        "ref.waste_security_code",
+        "glsx.waste_security_code",
         "mas.srstatus",
-        "glsxref.fund_company",
-        "ref.fund_number",
+        "glsxglsx.fund_company",
+        "glsx.fund_number",
         "mfspric.dtl_send_num",
         "glsx.send_cd",
         "mfspric.prc_dtl_send_num",
         "glsx.sm_security_code",
-        "ref.sm_security_code",
-        "ref.fund_desc",
+        "glsx.sm_security_code",
+        "glsx.fund_desc",
         "mas.srshsbese",
         "mas.srsectype",
         "mas.srcurrcode",
@@ -237,22 +244,22 @@
         "tantrum.srseccode",
         "mas.srpmtrate",
         "mas.srcusipnbr",
-        "sm.secrty_type_id",
+        "sm_secrty_type_id",
         "mas.srsecclas"
       ]
     },
     "derived_columns": [
       {
         "name": "tantrumid",
-        "expression": "case when left(ref.send_cd, 3) = 'sbb' then case when substring(ref.send_cd, 4, 5) = mfspric.prc_dtl_send_num then null else case when substring(ref.send_cd, 4, 3) like '[0-9]%' and substring(ref.send_cd, 7, 2) = '*' then concat(230000000000, substring(ref.send_cd, 4, 3)) when len(trim(substring(ref.send_cd, 4, 5))) > 0 then concat(string_agg(format(ascii(substring(ref.send_cd, 4, 1)), '00')), '000') else concat('23000', string_agg(format(ascii(substring(ref.send_cd, 4, 1)), '00'))) end"
+        "expression": "case when left(glsx.send_cd, 3) = 'sbb' then case when substring(glsx.send_cd, 4, 5) = mfspric.prc_dtl_send_num then null else case when substring(glsx.send_cd, 4, 3) like '[0-9]%' and substring(glsx.send_cd, 7, 2) = '*' then concat(230000000000, substring(glsx.send_cd, 4, 3)) when len(trim(substring(glsx.send_cd, 4, 5))) > 0 then concat(string_agg(format(ascii(substring(glsx.send_cd, 4, 1)), '00')), '000') else concat('23000', string_agg(format(ascii(substring(glsx.send_cd, 4, 1)), '00'))) end"
       },
       {
         "name": "tantrum_na",
-        "expression": "case when ref.sm_security_code is not null then rtrim(ref.fund_desc) else rtrim(mas.srshsbese)"
+        "expression": "case when glsx.sm_security_code is not null then rtrim(glsx.fund_desc) else rtrim(mas.srshsbese)"
       },
       {
         "name": "tantrum_family_cd",
-        "expression": "case when ref.sm_security_code is not null then case when mas.srsectype in ('380','331') then '+01313' else '+01316' end"
+        "expression": "case when glsx.sm_security_code is not null then case when mas.srsectype in ('380','331') then '+01313' else '+01316' end"
       },
       {
         "name": "tantrum_family_cd",
@@ -260,7 +267,7 @@
       },
       {
         "name": "tantrum_issued_in",
-        "expression": "case when ref.sm_security_code is not null and left(ref.send_cd, 3) in ('sbm', 'sbg', 'sbs','sbb', 'sbc') then 'y' when left(mas.srshsbese, 2) = 'sb' then 'y' else 'n' end"
+        "expression": "case when glsx.sm_security_code is not null and left(glsx.send_cd, 3) in ('sbm', 'sbg', 'sbs','sbb', 'sbc') then 'y' when left(mas.srshsbese, 2) = 'sb' then 'y' else 'n' end"
       },
       {
         "name": "curncy_cd",
