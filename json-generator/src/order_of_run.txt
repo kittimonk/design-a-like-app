@@ -1,0 +1,54 @@
+run commands in below order
+
+1) common_utils.py
+2) nlp_rules_parser_v6.py
+3) extract_sources_columns_v7c.py
+4) data_sourcing_cte_v11a.py
+5) i) build_model_v1_v11c.py
+   ii) build_dt_view_from_model_v12_multi_lkp.py
+   iii) build_job_json_v1.py
+6) build_load_enrich_from_dt_v2.py
+7) build_combined_job_v5.py
+
+To run all using .py script then run ->  run_full_job_v1.py
+To run from powershell using .ps1 then run -> run_full_job.ps1 or run_full_job_original.ps1
+
+
+python json-generator/src/build_model_v1_v11c.py --input json-generator/generated_out/source_columns_summary_v7c.json  --output json-generator/generated_out/model_v1.json
+
+
+python "json-generator/src/build_dt_view_from_model_v12_multi_lkp.py" `
+  --model "json-generator/generated_out/model_v1.json" `
+  --v7c "json-generator/generated_out/source_columns_summary_v7c.json" `
+  --lookup-txt "json-generator/generated_out/lookup_reference_module_v3.txt" `
+  --malcode mcb `
+  --output "json-generator/generated_out/dt_mcb_ossbr_2_1.json"
+
+python .\design-a-like-app\json-generator\src\build_job_json_v1.py --model .\design-a-like-app\json-generator\generated_out\model_v1.json --sqljson .\design-a-like-app\json-generator\generated_out\dt_mcb_ossbr_2_1.json --malcode mcb --output .\design-a-like-app\json-generator\generated_out\dt_mcb_ossbr_2_1.job.txt
+
+
+python "design-a-like-app/json-generator/src/build_load_enrich_from_dt_v2.py" `
+  --dt-json "design-a-like-app/json-generator/generated_out/dt_mcb_ossbr_2_1.json" `
+  --csv "design-a-like-app/json-generator/data/source_target_mapping_clean_v9_fixed (3).csv" `
+  --out "design-a-like-app/json-generator/generated_out/load_enrich_mcb_ossbr_2_1.job.txt"
+
+
+
+
+python src/build_combined_job_v5.py `
+  --data-sourcing generated_out/data_sourcing_module_v11a.txt `
+  --lookup generated_out/lookup_reference_module_v3.txt `
+  --dt-view generated_out/dt_mcb_ossbr_2_1.job.txt `
+  --load-enrich generated_out/load_enrich_mcb_ossbr_2_1.job.txt `
+  --job-id 11000 `
+  --output-dir generated_out
+
+
+python "design-a-like-app/json-generator/src/run_full_job_v1.py" ` 
+  --csv "design-a-like-app/json-generator/data/source_target_mapping_clean_v9_fixed (3).csv" ` 
+  --malcode mcb `
+  --job-id 11000 `
+  --outdir "design-a-like-app/json-generator/generated_out/" 
+
+
+  python .\design-a-like-app\json-generator\src\data_sourcing_cte_v11a.py ".\design-a-like-app\json-generator\data\source_target_mapping_clean_v9_fixed (3).csv" --out ".\design-a-like-app\json-generator\generated_out\data_sourcing_module_v11a.txt"
