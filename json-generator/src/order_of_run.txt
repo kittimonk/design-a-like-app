@@ -50,5 +50,22 @@ python "design-a-like-app/json-generator/src/run_full_job_v1.py" `
   --job-id 11000 `
   --outdir "design-a-like-app/json-generator/generated_out/" 
 
+python3 json-generator/src/run_full_job_v1.py --csv "json-generator/data/source_target_mapping_clean_v9_fixed (3).csv" --malcode mcb --job-id 5000 --outdir json-generator/generated_out/
+
 
   python .\design-a-like-app\json-generator\src\data_sourcing_cte_v11a.py ".\design-a-like-app\json-generator\data\source_target_mapping_clean_v9_fixed (3).csv" --out ".\design-a-like-app\json-generator\generated_out\data_sourcing_module_v11a.txt"
+
+
+python3 json-generator/src/run_full_job_v1.py --csv "json-generator/data/source_target_mapping_clean_v9_fixed (3).csv" --malcode mcb --job-id 5000 --outdir json-generator/generated_out/
+
+python3 json-generator/src/common_utils.py
+python3 "json-generator/src/nlp_rules_parser_v6.py" "json-generator/data/source_target_mapping_clean_v9_fixed (3).csv" --outdir "json-generator/generated_out/"
+python3 "json-generator/src/extract_sources_columns_v7c.py" "json-generator/data/source_target_mapping_clean_v9_fixed (3).csv" --nlp_json "json-generator/generated_out/nlp_rules_interpretation_v6.json" --outdir "json-generator/generated_out/"
+python3 "json-generator/src/data_sourcing_cte_v11a.py" "json-generator/data/source_target_mapping_clean_v9_fixed (3).csv" --out "json-generator/generated_out/data_sourcing_module_v11a.txt"
+python3 "json-generator/src/lookup_reference_module_v3.py" --csv "json-generator/data/source_target_mapping_clean_v9_fixed (3).csv" --v7c "json-generator/generated_out/source_columns_summary_v7c.json" --out "json-generator/generated_out/lookup_reference_module_v3.txt"
+python3 "json-generator/src/build_model_v1_v11c.py" --input "json-generator/generated_out/source_columns_summary_v7c.json" --output "json-generator/generated_out/model_v1.json"
+python3 "json-generator/src/build_dt_view_from_model_v12_multi_lkp.py" --model "json-generator/generated_out/model_v1.json" --v7c "json-generator/generated_out/source_columns_summary_v7c.json" --lookup-txt "json-generator/generated_out/lookup_reference_module_v3.txt" --malcode mcb --output "json-generator/generated_out/dt_mcb_ossbr_2_1.json"
+python3 "json-generator/src/build_job_json_v1.py" --model "json-generator/generated_out/model_v1.json" --sqljson "json-generator/generated_out/dt_mcb_ossbr_2_1.json" --malcode mcb --output "json-generator/generated_out/dt_mcb_ossbr_2_1.job.txt"
+python3 "json-generator/src/build_load_enrich_from_dt_v2.py" --dt-json "json-generator/generated_out/dt_mcb_ossbr_2_1.json" --csv "json-generator/data/source_target_mapping_clean_v9_fixed (3).csv" --out "json-generator/generated_out/load_enrich_mcb_ossbr_2_1.job.txt"
+python3 "json-generator/src/build_combined_job_v5.py" --data-sourcing "json-generator/generated_out/data_sourcing_module_v11a.txt" --lookup "json-generator/generated_out/lookup_reference_module_v3.txt" --dt-view "json-generator/generated_out/dt_mcb_ossbr_2_1.job.txt" --load-enrich "json-generator/generated_out/load_enrich_mcb_ossbr_2_1.job.txt" --job-id 5000 --output-dir "json-generator/generated_out/"
+
