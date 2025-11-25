@@ -1,0 +1,43 @@
+Source Schema ID *, Source DB Name/Incoming File Path *, Source Schema Name (if applicable) (auto populate), Source Table/File Name * (auto populate), Source Column Name * (auto populate), Source Data Type * (auto populate), Target Schema ID *, Target DB Name/Outgoing File Path * (auto populate), Target Schema Name (if applicable) (auto populate), Target Table/File Name * (auto populate), Target Column/Field Name * (auto populate), Target Data Type * (auto populate), Business Rule (auto populate), Join Clause (auto populate), Transformation Rule/Logic (auto populate)
+T_dsav_b_s_0003,SZ DAA,"DAA {SRZ,FS}/DAA@dle1sz.dfs.core.windows.net/DAA/dsav_b_s/current",dsav_b_s,sav_d2_s_br, INT64,T_at_msg_t1_0002,AAZ_caw,"caw{CZ,DW}/caw_poolprd/caw/stage/DAA_sav/at_msg_base_table",at_msg,act_id,bigint,,,"caw.act_id('SAV',""sav_d2_s_br"".LPAD(4,'0')||""sav_d2_s_act"".LPAD(7,'0'))"
+T_dsav_b_s_0004,SZ DAA, "DAA {SRZ,FS}/DAA@dle1sz.dfs.core.windows.net/DAA/dsav_b_s/current",dsav_b_s,sav_d2_s_act,INT64,T_at_msg_t1_0002,AAZ_caw,"caw{CZ,DW}/caw_poolprd/caw/stage/DAA_sav/at_msg_base_table",at_msg,act_id,bigint,,,"caw.act_id('SAV',""sav_d2_s_br"".LPAD(4,'0')||""sav_d2_s_act"".LPAD(7,'0'))"
+T_dsav_b_s_0006,SZ DAA,"DAA {SRZ,FS}/DAA@dle1sz.dfs.core.windows.net/DAA/dsav_b_s/current",dsav_b_s,sav_d2_sms_mg_num, INT64, T_at_msg_t1_0003,AAZ_caw,"caw{CZ,DW}/caw_poolprd/caw/stage/DAA_sav/at_msg_base_table",at_msg,seq_no,bigint,,,Straight move (if date field then set Format source date as YYYY-MM-DD)
+T_dsav_b_s_0006,SZ DAA,"DAA {SRZ,FS}/DAA@dle1sz.dfs.core.windows.net/DAA/dsav_b_s/current",dsav_b_s,sav_d2_sms_mg_num, INT64, T_at_msg_t1_0004,AAZ_caw,"caw{CZ,DW}/caw_poolprd/caw/stage/DAA_sav/at_msg_base_table",at_msg,at_msg_type_cd,bigint,,,"CASE 
+ WHEN ""SAV-D2-S-MG-NUM"" = 1 THEN 3171 -- ORDER 
+ WHEN ""SAV-D2-S-MG-NUM"" = 2 THEN 3172 -- DECEASED 
+ WHEN ""SAV-D2-S-MG-NUM"" = 3 THEN 3173 -- VERIFY 
+ WHEN ""SAV-D2-S-MG-NUM"" = 4 THEN 3174 -- LOST 
+ WHEN ""SAV-D2-S-MG-NUM"" = 5 THEN 3175 -- MULTIPLE 
+ WHEN ""SAV-D2-S-MG-NUM"" = 6 THEN 3176 -- GET NEW 
+ WHEN ""SAV-D2-S-MG-NUM"" = 7 THEN 3177 -- CURRENT ANALYSIS 
+ WHEN ""SAV-D2-S-MG-NUM"" = 8 THEN 3178 -- PRIVATE 
+ WHEN ""SAV-D2-S-MG-NUM"" = 9 THEN 3179 -- SEE 
+ WHEN ""SAV-D2-S-MG-NUM"" = 10 THEN 3180 -- CHARGE REQUIRED 
+ WHEN ""SAV-D2-S-MG-NUM"" = 11 THEN 3181 -- IN NUMBER 
+ WHEN ""SAV-D2-S-MG-NUM"" = 12 THEN 3182 -- BAL 
+ WHEN ""SAV-D2-S-MG-NUM"" = 13 THEN 3183 -- DO NOT 
+ WHEN ""SAV-D2-S-MG-NUM"" = 14 THEN 3184 -- SIGNATURE 
+ WHEN ""SAV-D2-S-MG-NUM"" = 15 THEN 3185 -- CAUTION 
+ WHEN ""SAV-D2-S-MG-NUM"" = 16 THEN 3186 -- SEE OTHER 
+ WHEN ""SAV-D2-S-MG-NUM"" = 17 THEN 3187 -- NEW 
+ WHEN ""SAV-D2-S-MG-NUM"" = 18 THEN 3188 -- MERCHANT 
+ WHEN ""SAV-D2-S-MG-NUM"" = 19 THEN 3189 -- POWER 
+ WHEN ""SAV-D2-S-MG-NUM"" = 20 THEN 3190 -- RELEASE NO INFO 
+ WHEN ""SAV-D2-S-MG-NUM"" = 22 THEN 3191 -- SPECIAL 
+ WHEN ""SAV-D2-S-MG-NUM"" = 24 THEN 3192 -- HOLD OUT 
+ WHEN ""SAV-D2-S-MG-NUM"" = 25 THEN 3193 -- RSP 
+ WHEN ""SAV-D2-S-MG-NUM"" = 26 THEN 3194 -- TELLER 
+ ELSE NULL -- Default case if no match is found 
+END"
+T_dsav_b_s_0011,SZ DAA,"DAA {SRZ,FS}/DAA@dle1sz.dfs.core.windows.net/DAA/dsav_b_s/current",dsav_b_s,sav_d2_sms_coments,STRING,T_at_msg_t1_0005,AAZ_caw,"caw{CZ,DW}/caw_poolprd/caw/stage/DAA_sav/at_msg_base_table",at_msg,msg_tx,varchar,,,Straight move (if date field then set Format source date as YYYY-MM-DD)
+T_dsav_b_s_0010,SZ DAA,"DAA {SRZ,FS}/DAA@dle1sz.dfs.core.windows.net/DAA/dsav_b_s/current",dsav_b_s,sav_d2_sms_ldg_dat,STRING,T_at_msg_t1_0006,AAZ_caw,"caw{CZ,DW}/caw_poolprd/caw/stage/DAA_sav/at_msg_base_table",at_msg,msg_lodge_dt,date,,,Straight move (if date field then set Format source date as YYYY-MM-DD)
+T_dsav_b_s_0009,SZ DAA,"DAA {SRZ,FS}/DAA@dle1sz.dfs.core.windows.net/DAA/dsav_b_s/current",dsav_b_s,sav_d2_sms_exp_dat,STRING,T_at_msg_t1_0007,AAZ_caw,"caw{CZ,DW}/caw_poolprd/caw/stage/DAA_sav/at_msg_base_table",at_msg,msg_expiry_dt,date,,,Straight move (if date field then set Format source date as YYYY-MM-DD)
+,,,,,,T_at_msg_t1_0008,AAZ_caw,"caw{CZ,DW}/caw_poolprd/caw/stage/DAA_sav/at_msg_base_table",at_msg,source_appl_cd,bigint,,,set to 259 (Savings)
+,,,,,,T_at_msg_t1_0009,AAZ_caw,"caw{CZ,DW}/caw_poolprd/caw/stage/DAA_sav/at_msg_base_table", at_msg,last_change_dt,date,,,Set to etl.effective.start.date in the format yyyy-mm-dd
+,,,,,,T_at_msg_t1 0010,AAZ_caw,"caw{cz,DW}/caw_poolprd/caw/stage/DAA_sav/at_msg_base_table", at_msg, to_dt,date,,,set to '9999-12-31' and cast it as date
+,,,,,,T_at_msg_t1_0011,AAZ_caw,"caw{CZ,DW}/caw_poolprd/caw/stage/DAA_sav/at_msg_base_table",at_msg,load_ts,datetime2,,,set to current_timestamp()
+,,,,,,T_at_msg_t1_0012,AAZ_caw,"caw{CZ,DW}/caw_poolprd/caw/stage/DAA_sav/at_msg_base_table",at_msg,etl_active_flag,bit,,,Field will be added and auto populated with 'true' via ETL Framework (no need to include this field in the code)
+,,,,,,T_at_msg_t1_0013,AAZ_caw,"caw{CZ,DW}/caw_poolprd/caw/stage/DAA_sav/at_msg_base_table",at_msg,etl_record_start_ts,datetime2,,,Field will be added and auto populated with the current timestamp via ETL Framework (no need to include this field in the code)
+,,,,,,T_at_msg_t1_0014,AAZ_caw,"caw{CZ,DW}/caw_poolprd/caw/stage/DAA_sav/at_msg_base_table",at_msg,etl_record_end_ts,datetime2,,,Field will be added and auto populated with the current timestamp via ETL Framework (no need to include this field in the code)
+,,,,,,T_at_msg_t1_0015,AAZ_caw,"caw{CZ,DW}/caw_poolprd/caw/stage/DAA_sav/at_msg_base_table",at_msg,etl_created_ts,datetime2,,,Field will be added and auto populated with the current timestamp via ETL Framework (no need to include this field in the code)
+,,,,,,T_at_msg_t1_0016,AAZ_caw,"caw{CZ,DW}/caw_poolprd/caw/stage/DAA_sav/at_msg_base_table",at_msg,etl_updated_ts,datetime2,,,Field will be added and auto populated with the current timestamp via ETL Framework (no need to include this field in the code)
