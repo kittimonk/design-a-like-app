@@ -1,0 +1,58 @@
+Source Schema ID *,Source DB Name/ Incoming File Path* (auto populate), Source Schema Name (if applicable) (auto populate),Source Table/File Name * (auto populate), Source Column Name * (auto populate), Source Data Type * (
+Target Schema Name (if applicable) (auto populate), Target Table/File Name * (auto populate), Target Colum/Fleld Name * (auto populate), Target Data Type * (auto populate), Business Rule (auto populate), Join Clause (auto popula
+T_clollono_0001, SRZ LON, "LON {SRZ, FS} Ion@edaaaedleiprdsrz.dfs. core windows.net/LON", clollono, T_acct_daily_0001, AAECZ_CAEDW, CAEDW, ACCT_DAILY, , "Exelusion crítería :
+Exclude loan records when the branch is one of the following. This exclusion also called Training Branch exclusion in ETL.
+TRAINING-BRANCH: 1474, 1370, 4012, 4034, 5334, 5456, 5491, 5801, 1403, 7398, 7530, 8780, 9011.
+GFS-BRANCH: 1611,
+1612, 1613, 2991, 3304.
+ICBC-BRANCH: 9040.
+PRIVATE-LABEL-BRANCH: 1610.",
+"clollono cl join dasilonx rec ds on
+cl. branch_num = ds. dasilonx_lon_branch and cl. account_num = ds. dasilonx_lon_account and cl. lon_num - ds.dasilonx_lon_num
+join delvlontype dc on
+I
+de. loan_type = cl.loan_type and dc. loan_subtype = cl. loan_subtype", "from clollono source:
+- exclude records when pfx caces_fac_id = "OMNI""
+T_delvlontype_0001, SRZ LON, "LON {SRZ, FS) Ion@edaaaedle1prdsrz.dfs.core.windows.net/LON", delvlontype,,, T_acct_daily_0001, AAECZ_CAEDW, CAEDW, ACCT_DAILY,,,"clollono cl join dasilonx rec ds on
+cl.branch_num = ds.dasilonx_lon_branch and cl.account num = ds. dasilonx_lon_account and cl. lon_num = ds.dasilonx_lon_num
+join delvlontype de on
+de. loan_type = cl.loan_type and dc. loan_subtype = cl. loan_subtype",
+T_dasilonx_rec_0001, SRZ DAS, "DAS (SRZ, FS) das@edaaaedle1prdsrz.dfs.core.windows.net/DAS", dasilonx_rec,,, T_acct_daily_0001, AAECZ_CAEDW, CAEDW, ACCT_DAILY,,,, "clollono el join dasilonx rec ds on
+cl.branch_num = ds. dasilonx_lon_branch and cl. account_num = ds-dasilon_lon_account and cl. lon_num = ds.dasilonx_lon_num
+join dclvlontype dc on
+dc. loan_type = cl. loan_type and dc. loan_subtype = cl.loan_subtype",
+T_clolacco_0001, SRZ LON, "LON (SRZ,FS) 1on@edaaaedle1prdsrz.dfs.core.windows.net/LON", clolacco,,,T_acct_daily_0001,AAECZ_CAEDW, CAEDW, ACCT_DAILY,, "join SRZ entity clollono with another SRZ entity clolacco using these key coli
+clollono.pfx_branch_num = clolacco.branch_num
+clollono.pfx_account_num = clolacco.account_num
+clollono.pfx lon num = clolacco.num lon",
+_branch_t1_0001, AAECZ_CAEDW, "AAECZ_CAEDW {CZ,FS} caedw@edaaaecze1prdcz.dfs.core.windows.net/curated/caedw",branch_t1,,,T_acct_daily_0001, AAECZ_CAEDW,CAEDW,ACCT_DAILY,,. "Exclusion criteria :
+Exclude loan records when the branch is one of the following. This exclusion also called Training Branch exclusion in ETL.
+TRAINING-BRANCH: 1474, 1370, 4012, 4034, 5334, 5456, 5491, 5801, 1403, 7398, 7530, 8780, 9011.
+GFS-BRANCH: 1611, 1612, 1613, 2991, 3304.
+ICBC-BRANCH: 9040.
+PRIVATE-LABEL-BRANCH: 1610." JOIN CAEDW entity branch t1 with SRZ entiry clollono as clollono.pfx_branch_num - branch_t1.branch_no,
+T dasilonx rec 0002, SRZ DAS, "DAS (SRZ, FS} das@edaaaed1e1prdsrz.dfs.core.windows.net/DAS", dasilonx_rec,dasilonx_pda_branch, INT64, T_acct_daily_0002, AAECZ_CAEDW, CAEDW, acct_daily, ACCT_ID bigint,, "clollono cl Join dasilonx_rec ds
+cl.branch_num = ds.dasilonx_lon branch and cl.account_num = ds.dasilonx_lon_account and cl.lon_num - ds.dasilonx_lon_num
+join dclvlontype dc on
+dc. loan_type = c1.loan type and dc.loan_subtype = cl.loan_subtype", Pass "LON" +BRANCH_NUM+LON_ACCOUNT_NUM+LON_NUM to call caedw.acct_id routine to generate LOAN acct_id
+36฿
+37
+38
+39
+40
+41
+42
+43
+44
+45
+T_dasilonx_rec_0003, SRZ DAS, "DAS (SRZ, FS} das@edaaaed1e1prdsrz.dfs.core.windows.net/DAS", dasilonx_rec, dasilonx_pda_account, INT64, T_acct_daily_0002, AAECZ_CAEDW, CAEDM, acet datly, ACCT_ID, bigint,, "clollona cl Join dasilonx_rec di
+I. branch num = ds.dasilonx lon branch and cl. account_num - ds. dasilonx_lon_account and c1.1on_num - ds.dasilonx_lon_num
+join dclvlontype dc on
+de. loan type = c1.loan type and de. loan subtype = c1. loan subtype", Pass 'LON* +BRANCH_NUM+LON_ACCOUNT_NUM+LON_NUM to call caedw.acct_id routine to generate LOAN acct_id
+T_dasilonx_rec_0004, SRZ DAS, "DAS {SRZ, FS} das@edaaaed1e1prdsrz.dfs.core.windows.net/DAS", dasilonx_rec, dasilonx_pda_loc_num, INT64, T_acct_daily_0002, AAECZ_CAEDW, CAEDW, acct_daily, ACCT_ID bigint,, "clollono cl join dasilonx_rec di
+cl. branch_num - ds.dasilonx_lon_branch and cl.account_num = ds. dasilonx_lon_account and cl.lon_num - ds.dasilonx_lon_num
+join delvlontype de on
+dc. loan_type = c1.1oan_type and dc. loan_subtype = c1.1oan_subtype", Pass 'LON +BRANCH_NUM+LON_ACCOUNT_NUM+LON_NUM to call caedw.acct_id routine to generate LOAN acct_id
+T_dasilonx_rec_0005, SRZ DAS, "DAS (SRZ, FS} das@edaaaedle1prdsrz.dfs.core.windows.net/DAS", dasilonx_rec, dasilonx_lon_branch, INT64, T_acct_daily_0002, AAECZ_CAEDW, CAEDN, acct_daily, ACCT_ID, bigint,, "clollono cl join dasilonx_rec ds
+cl.branch_num = ds.dasilonx_lon_branch and cl. account_num = ds. dasilonx_lon_account and cl.1on_num = ds.dasilonx_lon_num
+join delvlontype de on
